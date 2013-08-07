@@ -24,7 +24,7 @@ class MainServer
   def handle_request(ses)
     @ses = ses
     req = ses.gets
-    puts req
+    puts "Request received (1st line): "+req
     url,args = parse_request(req)
     case url
     when "/newGame" then new_game()
