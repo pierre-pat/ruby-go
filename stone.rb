@@ -45,23 +45,51 @@ class Stone
   
   def Stone.undo(goban)
     stone = goban.history.last()
-    stone.remove if stone != nil
+    stone.take_back if stone != nil
   end
 
   def Stone.valid_move?(goban, i, j, color)
     return false if !goban.valid_move?(i,j)
-    stone = Stone.new(goban,color)
-    return stone.check_valid?(i,j)
+
+    lives, allies, enemies = Stone.look_around(goban,i,j,color)
+    return false if Stone.move_is_suicide?(lives,allies,enemies)
+    return false if Stone.move_is_ko?(goban,i,j,enemies)
+    return true
   end
 
-  def check_valid?(i,j)
-    put_down(i,j)
-    valid = true
-    # no suicide move
-    valid = false if @group.lives==0
-    # TODO add ko rule here
-    remove()
-    return valid
+  # Is a move a suicide?
+  # not a suicide if 1 free life around
+  # or if one enemy group will be killed
+  # or if the result of the merge of ally groups will have more than 0 life
+  def Stone.move_is_suicide?(lives, allies, enemies)
+    return false if lives != 0
+    enemies.each { |enemy| return false if enemy.lives == 1 }
+    
+    total = 0
+    allies.each { |ally| total += ally.lives-1 }
+    return false if total>=1
+    
+    return true # a suicide!
+  end
+  
+  # Is a move a ko?
+  # if the move would kill with stone i,j a single stone A (and nothing else!)
+  # and the previous move killed with stone A a single stone B in same position i,j
+  # then it is a ko
+  def Stone.move_is_ko?(goban, i, j, enemies)
+    group_a,kill_count = nil,0
+    enemies.each { |enemy| group_a,kill_count = enemy,kill_count+1 if enemy.lives == 1 }
+    return false if kill_count != 1
+    return false if group_a.stones.size != 1
+    stone_a = group_a.stones[0]
+    return false if goban.history.last != stone_a
+    
+    group_b = goban.killed_groups.last
+    return false if group_b.killed_by != stone_a
+    return false if group_b.stones.size != 1
+    stone_b = group_b.stones[0]
+    return false if stone_b.i != i or stone_b.j != j
+    return true # a ko!
   end
 
   # Returns an array of "coordinate changers" to get positions around any stone
@@ -69,17 +97,17 @@ class Stone
     return XY_AROUND
   end
 
-  def look_around()
+  def Stone.look_around(goban,i,j,color)
     allies=[]
     enemies=[]
     lives=0
-    # puts "looking around "+@i.to_s+","+@j.to_s
+    # puts "looking around "+i.to_s+","+j.to_s
     XY_AROUND.each do |cc|
-      stone = @goban.stone_at?(@i+cc[0],@j+cc[1])
+      stone = goban.stone_at?(i+cc[0], j+cc[1])
       if stone!=nil
         if stone!=EMPTY
           group=stone.group
-          if stone.color==@color
+          if stone.color == color
             allies.push(group) if allies.find_index(group)==nil
           else
             enemies.push(group) if enemies.find_index(group)==nil
@@ -91,21 +119,16 @@ class Stone
     end
     return lives, allies, enemies
   end
-  
-  def look_around_for_enemies()
-    lives, allies, enemies = look_around()
-    return enemies
-  end
 
-  def look_around_for_allies()
-    lives, allies, enemies = look_around()
-    return allies
+  def look_around_for_enemies()
+    lives, allies, enemies = Stone.look_around(@goban,@i,@j,@color)
+    return enemies
   end
 
   # Counts how many empty positions (life) are around a stone
   # not used but tested
   def look_around_for_lives()
-    lives, allies, enemies = look_around()
+    lives, allies, enemies = Stone.look_around(@goban,@i,@j,@color)
     return lives
   end
     
@@ -113,7 +136,7 @@ class Stone
     @i=i
     @j=j
     @goban.play(i,j,self)
-    lives, allies, enemies = look_around()
+    lives, allies, enemies = Stone.look_around(@goban,@i,@j,@color)
     if allies.size==0
       @group=Group.new(@goban,self,lives)
     else
@@ -124,7 +147,7 @@ class Stone
     enemies.each { |g| g.attack(self) }
   end
 
-  def remove()
+  def take_back()
     while @goban.merged_groups.last().merged_with == @group do
       ally = @goban.merged_groups.last()
       @group.unmerge(ally)
@@ -133,7 +156,7 @@ class Stone
       enemy = @goban.killed_groups.last()
       enemy.resuscitate()
     end
-    lives, allies, enemies = look_around()
+    lives, allies, enemies = Stone.look_around(@goban,@i,@j,@color)
     enemies.each { |g| g.add_lives(1) }
     @group.disconnect_stone(self,lives) # NB @group == allies[0]
     @goban.undo(self)
