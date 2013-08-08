@@ -59,13 +59,13 @@ class Goban
     @ban[j][i]=EMPTY
   end
 
-  # Called by Stone only
+  # Plays a stone and stores it in history
   def play(i,j,stone)
     @ban[j][i]=stone
     @history.push(stone)
   end
   
-  # Called by Stone only
+  # Removes the last stone played from the board
   def undo(stone)
     raise "Invalid undo" if @history.pop != stone
     @ban[stone.j][stone.i]=EMPTY
