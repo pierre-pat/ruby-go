@@ -12,6 +12,8 @@ class TestStone
     t.test_play_at
     t.test_group_merge
     t.test_group_kill
+    t.test_suicide
+    t.test_ko
     puts "All tests completed"
   end
   
@@ -131,6 +133,39 @@ class TestStone
     assert_eql(EMPTY, @goban.stone_at?(1,4))
   end
 
+  def test_suicide
+    init(5) # a2 b2 b1 a3 pass c1
+    Stone.play_at(@goban, 1, 2, BLACK)
+    Stone.play_at(@goban, 2, 2, WHITE)
+    Stone.play_at(@goban, 2, 1, BLACK)
+    assert_eql(false, Stone.valid_move?(@goban,1,1,WHITE)) # suicide invalid
+    Stone.play_at(@goban, 1, 3, WHITE)
+    assert_eql(true, Stone.valid_move?(@goban,1,1,WHITE)) # now this would be a kill
+    assert_eql(true, Stone.valid_move?(@goban,1,1,BLACK)) # black could a1 too (merge)
+    Stone.play_at(@goban, 3, 1, WHITE) # now 2 black stones share a last life
+    assert_eql(false, Stone.valid_move?(@goban,1,1,BLACK)) # so this would be a suicide with merge
+  end
+
+  def test_ko
+    init(5) # pass b2 a2 a3 b1 a1
+    Stone.play_at(@goban, 2, 2, WHITE)
+    Stone.play_at(@goban, 1, 2, BLACK)
+    Stone.play_at(@goban, 1, 3, WHITE)
+    Stone.play_at(@goban, 2, 1, BLACK)
+    Stone.play_at(@goban, 1, 1, WHITE) # kill!
+    
+    assert_eql(false, Stone.valid_move?(@goban,1,2,BLACK)) # now this is a ko
+    Stone.play_at(@goban, 4, 4, BLACK) # play once anywhere else
+    Stone.play_at(@goban, 4, 5, WHITE)
+    assert_eql(true, Stone.valid_move?(@goban,1,2,BLACK)) # ko can be taken by black
+    Stone.play_at(@goban, 1, 2, BLACK) # black takes the ko
+    assert_eql(false, Stone.valid_move?(@goban,1,1,WHITE)) # white cannot take the ko
+    Stone.play_at(@goban, 5, 5, WHITE) # play once anywhere else
+    Stone.play_at(@goban, 5, 4, BLACK)
+    assert_eql(true, Stone.valid_move?(@goban,1,1,WHITE)) # ko can be taken back by white
+    Stone.play_at(@goban, 1, 1, WHITE) # white takes the ko
+    assert_eql(false, Stone.valid_move?(@goban,1,2,BLACK)) # and black cannot take it now
+  end
 end
 
 TestStone.run
