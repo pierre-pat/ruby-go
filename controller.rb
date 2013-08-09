@@ -3,36 +3,49 @@ require_relative "goban"
 require_relative "stone"
 
 class Controller
-  attr_reader :goban, :cur_color, :history
+  attr_reader :goban, :cur_color, :history, :messages, :game_ended
   
   def initialize(size, num_players=2, handicap=0)
     Stone.init(num_players)
     @goban = Goban.new(size)
     Group.init(@goban)
+    @console = false
     @num_colors = num_players
     @num_pass = 0
     @cur_color = BLACK
+    @game_ended = false
     set_handicap_points(handicap) if handicap>0
     @players = Array.new(num_players,nil)
     @history = []
+    @messages = []
   end
   
   # Sets a player before the game starts
   def set_player(color, player)
     @players[color] = player
     player.attach_to_game(self,color)
+    puts "Attached new player to game: "+color.to_s+", "+player.to_s
+  end
+  
+  def add_message(msg)
+    if ! @console then @messages.push(msg) else puts msg end
   end
 
-  # Returns false if the game ended
   def play_one_move(move)
     @history.push(Stone.color_name(@cur_color)+": "+move)
     if move == "resign"
-      return false if @num_colors == 2
+      if @num_colors == 2 then 
+        @game_ended = true
+        return
+      end
       move = "pass" # if more than 2 players one cannot simply resign (but pass infinitely)
     end
     if move == "pass"
       @num_pass += 1
-      return false if @num_pass == @num_colors
+      if @num_pass == @num_colors then
+        @game_ended = true
+        return
+      end      
       @cur_color = (@cur_color+1) % @num_colors
     elsif move == "undo"
       @num_pass = 0 if request_undo()
@@ -43,28 +56,41 @@ class Controller
       Stone.play_at(@goban, i, j, @cur_color)
       @cur_color = (@cur_color+1) % @num_colors
     end
-    return true
   end
   
   def play_console_game
     raise "Missing player" if @players.find_index(nil)
+    @console = true
     loop do
       player = @players[@cur_color]
       move = player.get_move
-      break if ! play_one_move(move)
+      play_one_move(move)
+      break if @game_ended
     end
     end_game
+  end
+
+  def let_ai_play
+    player = @players[@cur_color]
+    return nil if player.is_human
+    move = player.get_move
+    play_one_move(move)
+    return move     
+  end
+  
+  def next_player_is_human?
+    return @players[@cur_color].is_human
   end
   
   def request_undo
     @history.pop # the "undo" command itself never stays in history
     if @history.size < @num_colors
-      puts "Nothing to undo"
+      add_message "Nothing to undo"
       return false
     end
     @players.each do |p|
       if p.color != @cur_color and !p.on_undo_request(@cur_color)
-        puts "Undo denied by "+Stone.color_name(p.color)
+        add_message "Undo denied by "+Stone.color_name(p.color)
         return false
       end
     end
@@ -72,17 +98,17 @@ class Controller
       Stone.undo(@goban) if ! @history.last.end_with?("pass")
       @history.pop
     end
-    puts "Undo accepted"
+    add_message "Undo accepted"
     return true
   end
 
 private
   def end_game
     @goban.console_display
-    puts "Game ended. Score: ..."
+    add_message "Game ended. Score: ..."
     # TODO score count and UI; not trivial
-    puts "Move history:"
-    @history.each {|m| puts m}
+    add_message "Move history:"
+    @history.each {|m| add_message m}
   end
   
   # Initializes the handicap points
