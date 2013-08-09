@@ -4,6 +4,7 @@ require_relative "stone"
 class Ai1Player < Player
 
   def initialize
+    @is_human = false
     @row = 2
     @col = 4
   end
