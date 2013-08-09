@@ -3,6 +3,7 @@ require_relative "player"
 class HumanPlayer < Player
 
   def initialize
+    @is_human = true
     @resigned = false
   end
   
@@ -31,6 +32,7 @@ class HumanPlayer < Player
   end
   
   def on_undo_request(color)
+    return true # TODO: until we implement how to broadcast this to web UI
     puts "Undo requested by "+Stone.color_name(color)+", do you accept? (y/n)"
     answer = gets.downcase.strip
     return answer == "y"
