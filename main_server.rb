@@ -27,13 +27,16 @@ class MainServer
     puts "Request received (1st line): "+req
     url,args = parse_request(req)
     case url
-    when "/newGame" then new_game()
-    when "/move" then new_move(args)
-    when "/undo"then command("undo")
-    when "/pass"then command("pass")
-    when "/resign"then command("resign")
-    else ses.print("Unknown request: "+url)
+      when "/newGame" then new_game(args)
+      when "/move" then new_move(args)
+      when "/undo" then command("undo")
+      when "/pass" then command("pass")
+      when "/resign" then command("resign")
+      when "/continue" then nil
+      else ses.print("Unknown request: "+url)
     end
+    ai_played = @controller.let_ai_play
+    @ses.print(web_display(@controller.goban,ai_played))
   end
   
   def parse_request(req_str)
@@ -46,55 +49,80 @@ class MainServer
     return url,args
   end
 
+  def get_arg(args, name, def_val=nil)
+    ndx = args ? args.index(name) : nil
+    return args[ndx+1] if ndx
+    raise "Missing argument "+name if !def_val
+    return def_val
+  end
+  def get_arg_i(args, name, def_val=nil)
+    return get_arg(args,name,def_val).to_i
+  end
+
   # http://localhost:8080/newGame
-  def new_game()
-    c = Controller.new(9,2,0)
-    c.set_player(0, Ai1Player.new)
-    # c.set_player(1, Ai1Player.new)
-    # c.set_player(0, HumanPlayer.new)
-    c.set_player(1, HumanPlayer.new)
-    @controller = c
-    @ses.print(web_display(@controller.goban))
+  def new_game(args)
+    size = get_arg_i(args,"size",19)
+    num_players = get_arg_i(args,"players",2)
+    handicap = get_arg_i(args,"handicap",0)
+    num_ai = get_arg_i(args,"ai",1)
+    @controller = Controller.new(size,num_players,handicap)
+    1.upto(num_players) do |n|
+      @controller.set_player(n-1, num_ai>=n ? Ai1Player.new : HumanPlayer.new)
+    end
   end
   
   def command(cmd)
     @controller.play_one_move(cmd)
-    @ses.print(web_display(@controller.goban))
   end
     
-  # http://localhost:8080/move?i=3&j=2
+  # http://localhost:8080/move?at=b3
   def new_move(args)
-    raise "Bad arguments" if args[0]!="at"
-    move=args[1]
+    move=get_arg(args,"at")
     @controller.play_one_move(move)
-    @ses.print(web_display(@controller.goban))
   end
   
-  def web_display(goban)
+  def web_display(goban,ai_played)
+    ended = @controller.game_ended
+    human = (!ended and @controller.next_player_is_human?)
     size=goban.size
-    s=""
+    s="<html><head>"
+    s << "<style>body {font-size:12pt;} a:link {text-decoration:none} "
+    s << "table {border: 1px solid black;} td {width: 15px;}</style>"
+    s << "</head><body><table style='{a:link {text-decoration:none}}'>"
     size.downto(1) do |j|
-      s << j.to_s
+      s << "<tr><th>"+j.to_s+"</th>"
       1.upto(size) do |i|
         cell=goban.stone_at?(i,j)
         if cell==EMPTY
-          if Stone.valid_move?(goban,i,j,@controller.cur_color)
-            s << "<a href='move?at="+goban.x_label(i)+j.to_s+"'>+</a>"
+          if human and Stone.valid_move?(goban,i,j,@controller.cur_color)
+            s << "<td><a href='move?at="+goban.x_label(i)+j.to_s+"'>+</a></td>"
           else
-            s << "+" # empty intersection we cannot play on (ko or suicide)
+            s << "<td>+</td>" # empty intersection we cannot play on (ko or suicide)
           end
         else
-          s << cell.to_text
+          s << "<td>"+cell.to_text+"</td>"
         end
       end
-      s << "<br>"
+      s << "</tr>"
     end
-    s << "   "
-    1.upto(size) { |i| s << goban.x_label(i)+"&nbsp;" }
-    s << "<br>"
-    s << "<a href='undo'>undo</a> "
-    s << "<a href='pass'>pass</a> "
-    s << "<a href='resign'>resign</a> "
+    s << "<tr><td></td>"
+    1.upto(size) { |i| s << "<th>"+goban.x_label(i)+"</th>" }
+    s << "</tr></table>"
+    if ai_played then
+      s << "AI played "+ai_played+"<br>"
+    end
+    if human then
+      s << " <a href='undo'>undo</a> "
+      s << " <a href='pass'>pass</a> "
+      s << " <a href='resign'>resign</a> "
+      s << " Who's turn: "+Stone::COLOR_CHARS[@controller.cur_color]
+    elsif ended then
+      s << "Game ended"
+    else
+      s << " <a href='continue'>continue</a> "
+    end
+    while txt = @controller.messages.shift do s << "<br>"+txt end
+    s << "</body></html>"
     return s
   end  
 
