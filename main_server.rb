@@ -9,10 +9,13 @@ require_relative "controller"
 require_relative "ai1_player"
 require_relative "human_player"
 
+# Very simple server that can be used to play a single *local* game
+# using a web browser as GUI.
 class MainServer
 
+  INDEX_PAGE = "./help-index.html"
+
   def initialize
-    @ses = nil
     @controller = nil
   end
 
@@ -28,10 +31,13 @@ class MainServer
   end
   
   def handle_request(ses)
-    @ses = ses
     req = ses.gets
     puts "Request received (1st line): "+req
     url,args = parse_request(req)
+    if ! @controller and url != "/newGame"
+      ses.print("Invalid request before starting a game: #{url}")
+      return
+    end
     case url
       when "/newGame" then new_game(args)
       when "/move" then new_move(args)
@@ -41,10 +47,11 @@ class MainServer
       when "/continue" then nil
       when "/history" then command("history")
       when "/dbg" then command("dbg")
-      else ses.print("Unknown request: "+url)
+      when "/index" then ses.print(read_index); return
+      else ses.print("Unknown request: #{url}")
     end
     ai_played = @controller.let_ai_play
-    @ses.print(web_display(@controller.goban,ai_played))
+    ses.print(web_display(@controller.goban,ai_played))
   end
   
   def parse_request(req_str)
@@ -95,9 +102,10 @@ class MainServer
     human = (!ended and @controller.next_player_is_human?)
     size=goban.size
     s="<html><head>"
-    s << "<style>body {font-size:12pt;} a:link {text-decoration:none} "
+    s << "<style>body {background-color:#f0f0f0; font-family: tahoma, sans serif; font-size:90%} "
+    s << "a:link {text-decoration:none} "
     s << "table {border: 1px solid black;} td {width: 15px;}</style>"
-    s << "</head><body><table style='{a:link {text-decoration:none}}'>"
+    s << "</head><body><table>"
     size.downto(1) do |j|
       s << "<tr><th>"+j.to_s+"</th>"
       1.upto(size) do |i|
@@ -128,13 +136,18 @@ class MainServer
       s << " <a href='dbg'>debug</a> "
       s << " <br>Who's turn: "+Stone::COLOR_CHARS[@controller.cur_color]
     elsif ended then
-      s << "Game ended"
+      s << "Game ended. <a href='index'>Back to index</a>"
+      # file:///C:/Documents%20and%20Settings/oribu/My%20Documents/ruby-go/src/game_start.html
     else
       s << " <a href='continue'>continue</a> "
     end
     while txt = @controller.messages.shift do s << "<br>"+txt end
     s << "</body></html>"
     return s
+  end
+
+  def read_index
+    return File.read(INDEX_PAGE)
   end
 
 end
