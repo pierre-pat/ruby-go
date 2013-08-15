@@ -2,6 +2,7 @@ require_relative "stone_constants"
 require_relative "goban"
 require_relative "stone"
 
+# A controller initializes a game and controls the possible user (or AI) actions.
 class Controller
   attr_reader :goban, :cur_color, :history, :messages, :game_ended
   
@@ -38,13 +39,15 @@ class Controller
   # Handles a regular move + the special commands
   def play_one_move(move)
     if move == "help" then
-      puts "Move (e.g. b3) or pass, undo, resign, history, dbg"
+      add_message "Move (e.g. b3) or pass, undo, resign, history, dbg"
+      add_message "Four letter abbreviations are accepted, e.g. \"hist\" is valid to mean \"history\""
     elsif move == "undo"
       @num_pass = 0 if request_undo()
     elsif move.start_with?("hist")
       show_history
     elsif move == "dbg" then
       @goban.debug_display
+      add_message "Debug output generated on console window." if ! @console
     elsif move.start_with?("resi")
       if @num_colors == 2 then 
         @game_ended = true
@@ -93,7 +96,7 @@ class Controller
         play_one_move(move)
       rescue StandardError => err
         raise if ! err.to_s.start_with?("Invalid move generated:")
-        puts "Invalid move: \"#{move}\""
+        add_message "Invalid move: \"#{move}\""
       end
       break if @game_ended
     end
@@ -153,25 +156,25 @@ private
   # Initializes the handicap points
   def set_handicap_points(count)
     size = @goban.size
-	  # Compute the distance from the handicap points to the border:
-	  # on boards smaller than 13, the handicap point is 2 points away from the border
-	  dist_to_border=(size<13 ? 2 : 3)
-	  short = 1 + dist_to_border
-	  middle = 1 + size/2
-	  long = size - dist_to_border
-
-	  # we want middle points only if the board is big enough 
-	  # and has an odd number of intersections
-	  count = count.max(4) if size<9 or size.modulo(2)==0
-
+    # Compute the distance from the handicap points to the border:
+    # on boards smaller than 13, the handicap point is 2 points away from the border
+    dist_to_border=(size<13 ? 2 : 3)
+    short = 1 + dist_to_border
+    middle = 1 + size/2
+    long = size - dist_to_border
+    
+    # we want middle points only if the board is big enough 
+    # and has an odd number of intersections
+    count = count.max(4) if size<9 or size.modulo(2)==0
+    
     count.times do |ndx|
-  	  # Compute coordinates from the index
-  	  # indexes correspond to this map:
-  	  # 0 4 3
-  	  # 6 8 7
-  	  # 2 5 1
-  	  # special case: for odd numbers and more than 4 stones, the center is picked
-  	  ndx=8 if count.modulo(2)==1 and count>4 and ndx==count-1
+      # Compute coordinates from the index
+      # indexes correspond to this map:
+      # 0 4 3
+      # 6 8 7
+      # 2 5 1
+      # special case: for odd numbers and more than 4 stones, the center is picked
+      ndx=8 if count.modulo(2)==1 and count>4 and ndx==count-1
       case ndx
       	when 0 then x = short; y = short
       	when 1 then x = long; y = long
