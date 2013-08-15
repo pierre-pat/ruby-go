@@ -1,5 +1,10 @@
+# Exemple of URL to start a new game:
+# http://localhost:8080/newGame?size=9&players=2&ai=1&handicap=5
+# Or a1=0 for 2 human players
+
 require "socket"
 
+require_relative "logging"
 require_relative "controller"
 require_relative "ai1_player"
 require_relative "human_player"
@@ -12,6 +17,7 @@ class MainServer
   end
 
   def start
+    $log.info("Starting the server...")
     webserver = TCPServer.new("localhost",8080)
     while(ses = webserver.accept)
       # for HTML answer
@@ -33,6 +39,8 @@ class MainServer
       when "/pass" then command("pass")
       when "/resign" then command("resign")
       when "/continue" then nil
+      when "/history" then command("history")
+      when "/dbg" then command("dbg")
       else ses.print("Unknown request: "+url)
     end
     ai_played = @controller.let_ai_play
@@ -55,11 +63,12 @@ class MainServer
     raise "Missing argument "+name if !def_val
     return def_val
   end
+  
   def get_arg_i(args, name, def_val=nil)
     return get_arg(args,name,def_val).to_i
   end
 
-  # http://localhost:8080/newGame
+  # http://localhost:8080/newGame?size=9&players=2&handicap=0&ai=0
   def new_game(args)
     size = get_arg_i(args,"size",19)
     num_players = get_arg_i(args,"players",2)
@@ -67,7 +76,7 @@ class MainServer
     num_ai = get_arg_i(args,"ai",1)
     @controller = Controller.new(size,num_players,handicap)
     1.upto(num_players) do |n|
-      @controller.set_player(n-1, num_ai>=n ? Ai1Player.new : HumanPlayer.new)
+      @controller.set_player(n-1, num_ai>=n ? Ai1Player : HumanPlayer)
     end
   end
   
@@ -93,7 +102,7 @@ class MainServer
       s << "<tr><th>"+j.to_s+"</th>"
       1.upto(size) do |i|
         cell=goban.stone_at?(i,j)
-        if cell==EMPTY
+        if cell.empty?
           if human and Stone.valid_move?(goban,i,j,@controller.cur_color)
             s << "<td><a href='move?at="+goban.x_label(i)+j.to_s+"'>+</a></td>"
           else
@@ -115,7 +124,9 @@ class MainServer
       s << " <a href='undo'>undo</a> "
       s << " <a href='pass'>pass</a> "
       s << " <a href='resign'>resign</a> "
-      s << " Who's turn: "+Stone::COLOR_CHARS[@controller.cur_color]
+      s << " <a href='history'>history</a> "
+      s << " <a href='dbg'>debug</a> "
+      s << " <br>Who's turn: "+Stone::COLOR_CHARS[@controller.cur_color]
     elsif ended then
       s << "Game ended"
     else
@@ -124,11 +135,9 @@ class MainServer
     while txt = @controller.messages.shift do s << "<br>"+txt end
     s << "</body></html>"
     return s
-  end  
+  end
 
 end
-
-# example http://localhost:8080/mainMenu?par1=val1
 
 server=MainServer.new
 server.start
