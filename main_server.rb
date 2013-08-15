@@ -14,6 +14,7 @@ require_relative "human_player"
 class MainServer
 
   INDEX_PAGE = "./help-index.html"
+  PORT = 8080
 
   def initialize
     @controller = nil
@@ -21,7 +22,8 @@ class MainServer
 
   def start
     $log.info("Starting the server...")
-    webserver = TCPServer.new("localhost",8080)
+    puts "Please open a web browser on http://localhost:#{PORT}/index"
+    webserver = TCPServer.new("localhost",PORT)
     while(ses = webserver.accept)
       # for HTML answer
       ses.print "HTTP/1.1 200/OK\r\nContent-type:text/html\r\n\r\n"
@@ -34,7 +36,7 @@ class MainServer
     req = ses.gets
     puts "Request received (1st line): "+req
     url,args = parse_request(req)
-    if ! @controller and url != "/newGame"
+    if ! @controller and url != "/newGame" and url != "/index"
       ses.print("Invalid request before starting a game: #{url}")
       return
     end
@@ -47,7 +49,7 @@ class MainServer
       when "/continue" then nil
       when "/history" then command("history")
       when "/dbg" then command("dbg")
-      when "/index" then ses.print(read_index); return
+      when "/index" then ses.print(File.read(INDEX_PAGE)); return
       else ses.print("Unknown request: #{url}")
     end
     ai_played = @controller.let_ai_play
@@ -137,17 +139,12 @@ class MainServer
       s << " <br>Who's turn: "+Stone::COLOR_CHARS[@controller.cur_color]
     elsif ended then
       s << "Game ended. <a href='index'>Back to index</a>"
-      # file:///C:/Documents%20and%20Settings/oribu/My%20Documents/ruby-go/src/game_start.html
     else
       s << " <a href='continue'>continue</a> "
     end
     while txt = @controller.messages.shift do s << "<br>"+txt end
     s << "</body></html>"
     return s
-  end
-
-  def read_index
-    return File.read(INDEX_PAGE)
   end
 
 end
