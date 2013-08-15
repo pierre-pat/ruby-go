@@ -1,0 +1,93 @@
+<html>
+<head>
+<style>
+body  {
+	background-color: #f0f0f0;
+	font-family: verdana, tahoma, arial, sans serif;
+	font-size:90%;
+	text-align: justify;
+}
+</style>
+</head>
+<body>
+
+<h1>Welcome to Ruby-Go!</h1>
+
+<p>This project is in active development stage. Main missing features are staggering:
+<ul>
+<li>No AI so you cannot play against the program. 
+We have a huge ambition for this part, or at least are planning to have a hell of a fun trying to build it!
+</li>
+<li>No internet remote server ability. This can be another fun part to add. 
+Note that if it works one day we would really like to see a game happen between 3 or 4 players, 
+since this is an added feature that we were curious about.
+</li>
+<li>No real GUI yet. The simplistic GUI you can access by using the links below has the convenient advantage to 
+allow us to test the program using a mouse instead of entering all the moves in console mode... This is why
+it was coded.
+</li>
+<li>Mmm... Thinking a bit, we are also missing a score counting feature, and probably a bunch of other things
+I cannot think of right now. Life is fun! :)
+</li>
+</ul>
+
+<h1>Playing with Browser GUI</h1>
+
+<h2>Start the server</h2>
+<em>First</em>, please start your web server <em>before</em> clicking on the links below.<br>
+For example, you can start it with a command like:<br>
+<pre>
+cd .../ruby-go/src
+.../ruby.exe main_server.rb
+</pre>
+
+You should see a message like:
+<pre>
+I, [2013-08-15T20:49:24.000000 #1372]  INFO -- : Starting the server...
+</pre>
+
+<h2>Start a new game</h2>
+<p>Once the server is running, you can try any of the links below:</p>
+
+<a href="http://localhost:8080/newGame?size=5&players=2&ai=0&handicap=0">5x5, 2 human players (nice for tests!)</a><br>
+
+<a href="http://localhost:8080/newGame?size=9&players=2&ai=1&handicap=5">9x9, 1 player against dumb AI, handicap of 5</a><br>
+
+<a href="http://localhost:8080/newGame?size=19&players=2&ai=0&handicap=0">Regular 19x19 board, 2 human players</a><br>
+
+
+<h1>Playing in console window</h1>
+<p>We use this more for testing and debugging. For this purpose this is much easier than the browser interface.<br>
+Everything is in text mode and will give you the good old DOS feeling again...
+</p>
+
+<pre>
+cd .../ruby-go/src
+.../ruby.exe main_console.rb
+</pre>
+
+<p>The settings are in the script "main_console.rb" itself. For example the number of players, AI, etc.<br>
+Remember to change the logging level in logging.rb if you want to see a matrix-movie-like torrent of 
+information about what happens in the background.<br>
+Type "help" for a list of the available commands.
+</p>
+
+<h1>Run the tests</h1>
+<p>Until an autobuild is set, these should be run manually as often as needed 
+(especially before checking in code changes).
+</p>
+
+For the unit tests:
+<pre>
+cd .../ruby-go/src/test
+.../ruby.exe test_all.rb
+</pre>
+
+For the performance (speed) test:
+<pre>
+cd .../ruby-go/src/test
+.../ruby.exe test_speed.rb
+</pre>
+
+
+<br><br><br><br>
