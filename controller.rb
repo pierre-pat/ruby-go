@@ -21,41 +21,66 @@ class Controller
   end
   
   # Sets a player before the game starts
-  def set_player(color, player)
-    @players[color] = player
-    player.attach_to_game(self,color)
-    puts "Attached new player to game: "+color.to_s+", "+player.to_s
+  def set_player(color, player_class)
+    @players[color] = player_class.new(self,color)
+    $log.info("Attached new player to game: "+color.to_s+", "+@players[color].to_s)
+  end
+  
+  # game is a series of moves, e.g. "c2,b2,pass,b4,b3,undo,b4,pass,b3"
+  def play_moves(game)
+    game.split(",").each { |move| play_one_move(move) }
   end
   
   def add_message(msg)
     if ! @console then @messages.push(msg) else puts msg end
   end
 
+  # Handles a regular move + the special commands
   def play_one_move(move)
-    @history.push(Stone.color_name(@cur_color)+": "+move)
-    if move == "resign"
-      if @num_colors == 2 then 
-        @game_ended = true
-        return
-      end
-      move = "pass" # if more than 2 players one cannot simply resign (but pass infinitely)
-    end
-    if move == "pass"
-      @num_pass += 1
-      if @num_pass == @num_colors then
-        @game_ended = true
-        return
-      end      
-      @cur_color = (@cur_color+1) % @num_colors
+    if move == "help" then
+      puts "Move (e.g. b3) or pass, undo, resign, history, dbg"
     elsif move == "undo"
       @num_pass = 0 if request_undo()
+    elsif move.start_with?("hist")
+      show_history
+    elsif move == "dbg" then
+      @goban.debug_display
+    elsif move.start_with?("resi")
+      if @num_colors == 2 then 
+        @game_ended = true
+        store_move_in_history("resign")
+      else
+        pass_one_move(move) # if more than 2 players one cannot simply resign (but pass infinitely)
+      end
+    elsif move == "pass"
+      pass_one_move(move)
     else
-      @num_pass = 0
-      i, j = Goban.parse_move(move)
-      raise "Invalid move generated:"+move if !Stone.valid_move?(@goban, i, j, @cur_color)
-      Stone.play_at(@goban, i, j, @cur_color)
-      @cur_color = (@cur_color+1) % @num_colors
+      play_a_stone(move)
     end
+  end
+
+  # Handles a new stone move (not special commands like "pass")
+  def play_a_stone(move)
+    i, j = Goban.parse_move(move)
+    raise "Invalid move generated:"+move if !Stone.valid_move?(@goban, i, j, @cur_color)
+    Stone.play_at(@goban, i, j, @cur_color)
+    store_move_in_history(move)
+    next_player!
+    @num_pass = 0
+  end
+  
+  def pass_one_move(move)
+    store_move_in_history(move)
+    @num_pass += 1
+    if @num_pass == @num_colors then
+      @game_ended = true
+    else
+      next_player!
+    end
+  end
+
+  def next_player!
+    @cur_color = (@cur_color+1) % @num_colors
   end
   
   def play_console_game
@@ -64,7 +89,12 @@ class Controller
     loop do
       player = @players[@cur_color]
       move = player.get_move
-      play_one_move(move)
+      begin
+        play_one_move(move)
+      rescue StandardError => err
+        raise if ! err.to_s.start_with?("Invalid move generated:")
+        puts "Invalid move: \"#{move}\""
+      end
       break if @game_ended
     end
     end_game
@@ -81,9 +111,20 @@ class Controller
   def next_player_is_human?
     return @players[@cur_color].is_human
   end
+
+  def show_history
+    add_message "Move history:"
+    add_message "(empty)" if @history.empty?
+    @history.each {|m| add_message m}
+  end
+  
+private
+
+  def store_move_in_history(move)
+    @history.push("#{Stone.color_name(@cur_color)}: #{move}")
+  end
   
   def request_undo
-    @history.pop # the "undo" command itself never stays in history
     if @history.size < @num_colors
       add_message "Nothing to undo"
       return false
@@ -102,13 +143,11 @@ class Controller
     return true
   end
 
-private
   def end_game
     @goban.console_display
     add_message "Game ended. Score: ..."
     # TODO score count and UI; not trivial
-    add_message "Move history:"
-    @history.each {|m| add_message m}
+    show_history
   end
   
   # Initializes the handicap points
