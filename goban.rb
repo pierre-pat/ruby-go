@@ -1,20 +1,29 @@
 require_relative "stone_constants"
 
+# Stores what we have on the board (namely, the stones and the empty spaces).
+# Giving coordinates, a Goban can return an existing stone.
+# It also remembers the list of stones played and can share this info for undo feature.
+# This class does not care about more than that.
+# See Stone and Group classes for the layer above this.
 class Goban
   NOTATION_A = "a".ord # notation origin; could be A or a
   
-  attr_reader :size, :merged_groups, :killed_groups, :history
+  attr_reader :size, :merged_groups, :killed_groups
 
   def initialize(size=19)
     @size = size
     @ban = Array.new(size+2)
-    (size+2).times do |j|
-      if j == 0 or j == size+1
-        @ban[j] = Array.new(size+2,BORDER)
-      else
-        row = Array.new(size+2,EMPTY)
-        row[0] = row[size+1] = BORDER
-        @ban[j] = row
+    @ban[0] = Array.new(size+2,BORDER)
+    @ban[size+1] = Array.new(size+2,BORDER)
+    1.upto(size) do |j|
+      row = Array.new(size+2)
+      row[0] = row[size+1] = BORDER
+      1.upto(size) { |i| row[i]=Stone.new(self,i,j,EMPTY) }
+      @ban[j] = row
+    end
+    1.upto(size) do |j|
+      1.upto(size) do |i|
+        @ban[j][i].find_neighbors
       end
     end
     @killed_groups = []
@@ -22,13 +31,13 @@ class Goban
     @history = []
   end
   
-  # This display is for debugging and text-only game
-  def console_display
+  # For debugging and text-only; receives a block of code and calls it for each stone
+  def _to_console
     @size.downto(1) do |j|
       printf "%2d ",j.to_s
       1.upto(@size) do |i|
         cell = @ban[j][i]
-        if cell == EMPTY then print "+" else print cell.to_text end
+        yield cell
       end
       print "\n"
     end
@@ -36,14 +45,38 @@ class Goban
     1.upto(@size) { |i| print(x_label(i)) }
     print "\n"
   end
+
+  # For debugging only
+  def debug_display
+    puts "Board:"
+    _to_console {|s| print(s.empty? ? "+" : s.to_text) }
+    puts "Lives around each stone:"
+    _to_console {|s| print s.around[EMPTY].size}
+    puts "Groups:"
+    groups={}
+    _to_console do |s|
+      print(s.empty? ? "+" : s.group.ndx); 
+      groups[s.group.ndx]=s.group if !s.empty?
+    end
+    puts "Full info on groups and stones:"
+    1.upto(Group.count) {|ndx| puts groups[ndx].debug_dump if groups[ndx]}
+  end
+
+  # This display is for debugging and text-only game
+  def console_display
+    _to_console {|s| if s.empty? then print "+" else print s.to_text end}
+  end
   
+  # Converts a numeric X coordinate in a letter (e.g 3->c)
   def x_label(i)
     return (NOTATION_A+i-1).chr
   end
 
+  # Basic validation only: coordinates and checks the intersection is empty
+  # See Stone class for evolved version of this (calling this one)
   def valid_move?(i, j)
     return false if i < 1 or i > @size or j < 1 or j > @size
-    return false if @ban[j][i] != EMPTY
+    return false if ! @ban[j][i].empty?
     return true
   end
   
@@ -51,24 +84,22 @@ class Goban
     return @ban[j][i]
   end
 
-  def put_stone(i,j,stone)
-    @ban[j][i]=stone
-  end
-
-  def remove_stone(i,j)
-    @ban[j][i]=EMPTY
-  end
-
   # Plays a stone and stores it in history
-  def play(i,j,stone)
-    @ban[j][i]=stone
+  # Actually we simply return the existing stone and the caller will update it
+  def play_at(i,j,color)
+    stone=@ban[j][i]
     @history.push(stone)
+    return stone
   end
   
   # Removes the last stone played from the board
-  def undo(stone)
-    raise "Invalid undo" if @history.pop != stone
-    @ban[stone.j][stone.i]=EMPTY
+  # Actually we simply return the existing stone and the caller will update it
+  def undo()
+    return @history.pop
+  end
+  
+  def previous_stone
+    return @history.last
   end
   
   # Parses a move like "c12" into 3,12
