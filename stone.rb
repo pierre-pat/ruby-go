@@ -2,6 +2,10 @@ require_relative "stone_constants"
 require_relative "goban"
 require_relative "group"
 
+# A "stone" stores everything we want to keep track of regarding an intersection on the board.
+# By extension, an empty intersection is also a stone, with a color attribute equals to EMPTY.
+# This class is also the entry point for moves in general, so it has methods to play or undo,
+# and verify if a planned move is authorized.
 class Stone
 
   COLOR_CHARS = "O@X$+" # NB "+" is for empty color == -1

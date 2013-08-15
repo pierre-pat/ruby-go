@@ -1,5 +1,9 @@
 require_relative "stone_constants"
 
+# A group keeps the list of its stones, the updated number of "lives" (empty intersections around),
+# and whatever status information we need to decide what happens to a group (e.g. when a
+# group is killed or merged with another group, etc.).
+# Note that most of the work here is to keep this status information up to date.
 class Group
   attr_reader :goban, :stones, :lives, :color
   attr_reader :merged_with, :merged_by, :killed_by, :sentinel, :ndx
@@ -12,6 +16,7 @@ class Group
     goban.killed_groups.push(@@sentinel)
   end
   
+  # Create a new group. Always with a single stone.
   def initialize(goban,stone,lives)
     @goban = goban
     @stones = [stone]
@@ -24,6 +29,7 @@ class Group
     @@ndx += 1
   end
   
+  # Returns the total number of group created (mostly for debug)
   def Group.count
     @@ndx
   end
@@ -82,7 +88,7 @@ class Group
       @lives += 1 if !on_merge # see comment in connect_stone
       raise "Unexpected error (lives<1 on disconnect)" if @lives<1
     end
-    # we always remove them in reverse order they came
+    # we always remove them in the reverse order they came
     if @stones.pop != stone then raise "Unexpected error (disconnect order)" end
   end
   
