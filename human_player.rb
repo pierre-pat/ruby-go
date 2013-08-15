@@ -2,32 +2,16 @@ require_relative "player"
 
 class HumanPlayer < Player
 
-  def initialize
-    @is_human = true
-    @resigned = false
+  def initialize(controller, color)
+    super(true, controller, color)
   end
   
+  # For humans this is only called for console game
   def get_move
-    return "pass" if @resigned
     @goban.console_display
-    move = nil
-    loop do
-      puts "What is "+Stone.color_name(@color)+"'s move?"
-      move = gets.downcase.strip
-      if move == "resign"
-        @resigned = true
-        break
-      elsif move == "pass"
-        break
-      elsif move == "undo"
-        return "undo"
-      else
-        col,row = Goban.parse_move(move)
-        break if Stone.valid_move?(@goban, col, row, @color)
-        puts "Invalid move: "+move
-      end
-    end
-    # puts "Your move: "+move
+    puts "What is #{Stone.color_name(@color)}'s move? (#{Stone::COLOR_CHARS[@color]})"
+    move = ""
+    while move == "" do move = gets.downcase.strip end
     return move
   end
   
