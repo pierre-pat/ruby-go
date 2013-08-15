@@ -32,7 +32,7 @@ class TestSpeed < Test::Unit::TestCase
     end
     t.stop
 
-    t.start("35 move game, 2000 times and undo", 4.54, 45)
+    t.start("35 move game, 2000 times and undo", 4.54, 46)
     1.upto(2000) do
       play_game_1
     end
