@@ -4,31 +4,67 @@ require_relative "group"
 
 class Stone
 
-  COLOR_CHARS = "O@X$"
+  COLOR_CHARS = "O@X$+" # NB "+" is for empty color == -1
   XY_AROUND = [[0,1],[1,0],[0,-1],[-1,0]] # top, right, bottom, left
 
-  @@color_names=["black","white","red","blue"] # not constant as this could be user choice
+  @@color_names = ["black","white","red","blue"] # not constant as this could be user choice
+  @@num_colors = 2 # default in real world; I would like to see a game with 3 or 4 one day though :)
   
-  attr_reader :goban, :group, :color, :i, :j
+  attr_reader :goban, :group, :color, :i, :j, :neighbors, :around
   
   def Stone.init(num_colors)
-    raise "Max player number is "+@@color_names.size.to_s if num_colors>@@color_names.size
+    raise "Max player number is #{@@color_names.size}" if num_colors>@@color_names.size
+    @@num_colors = num_colors
   end
 
-  def initialize(goban, color)
+  def initialize(goban, i, j, color)
     @goban = goban
+    @i = i
+    @j = j
     @color = color
     @group = nil
+    # @neighbors contains the neighboring stones (empty or not); no need to compute coordinates anymore
+    @neighbors = Array.new(4)
+    @neighbors.clear
+    # @around contains everything around a stone: unique groups (per color) and empty stones
+    @around = Array.new(@@num_colors+1) {[]} # +1 for since EMPTY is the last "color"
+  end
+
+  # Computes each stone's neighbors (called for each stone after init)
+  # NB: Stones next to side have only 3 neighbors, and the corner stones have 2
+  def find_neighbors
+    XY_AROUND.each do |coord_change|
+      stone = goban.stone_at?(@i+coord_change[0], @j+coord_change[1])
+      if stone != BORDER then
+        @neighbors.push(stone)
+        @around[stone.color].push(stone)
+      end
+    end
   end
   
   def to_s
-    "stone:"+i.to_s+","+j.to_s
+    "stone#{to_text}:#{as_move}"
   end
   
-  def set_group(group)
-    @group = group
+  def as_move
+    "#{Goban.move_as_string(@i,@j)}"
   end
-
+  
+  def debug_dump
+    s = to_s
+    s << " around: "
+    EMPTY.upto(@@num_colors-1) do |color|
+      s << " #{COLOR_CHARS[color]}["
+      @around[color].each do |item|
+        s << "#{item.as_move} " if item.is_a?(Stone)
+        s << "##{item.ndx} "if item.is_a?(Group)
+      end
+      s.chop! if @around[color].size>0
+      s << "]"
+    end
+    return s
+  end
+  
   def to_text
     return COLOR_CHARS[@color]
   end
@@ -37,23 +73,17 @@ class Stone
     return @@color_names[color]
   end
 
-  def Stone.play_at(goban,i,j,color)
-    stone = Stone.new(goban, color)
-    stone.put_down(i,j)
-    return stone
-  end
-  
-  def Stone.undo(goban)
-    stone = goban.history.last()
-    stone.take_back if stone != nil
+  def empty?
+    return @color == EMPTY
   end
 
   def Stone.valid_move?(goban, i, j, color)
-    return false if !goban.valid_move?(i,j)
+    # # $log.debug("Stone.valid_move? #{i}, #{j}, color:#{color}") if $debug
+    return false if !goban.valid_move?(i,j) # also checks if empty
 
-    lives, allies, enemies = Stone.look_around(goban,i,j,color)
-    return false if Stone.move_is_suicide?(lives,allies,enemies)
-    return false if Stone.move_is_ko?(goban,i,j,enemies)
+    stone = goban.stone_at?(i,j)
+    return false if stone.move_is_suicide?(color)
+    return false if stone.move_is_ko?(color)
     return true
   end
 
@@ -61,106 +91,149 @@ class Stone
   # not a suicide if 1 free life around
   # or if one enemy group will be killed
   # or if the result of the merge of ally groups will have more than 0 life
-  def Stone.move_is_suicide?(lives, allies, enemies)
-    return false if lives != 0
-    enemies.each { |enemy| return false if enemy.lives == 1 }
+  def move_is_suicide?(color)
+    return false if @around[EMPTY].size != 0
     
-    total = 0
-    allies.each { |ally| total += ally.lives-1 }
-    return false if total>=1
+    each_enemy(color) { |enemy| return false if enemy.lives == 1 }
     
-    return true # a suicide!
+    @around[color].each { |ally| return false if ally.lives > 1 }
+    
+    $log.debug("move #{@i}, #{@j}, color:#{color} would be a suicide") if $debug
+    return true
   end
   
   # Is a move a ko?
   # if the move would kill with stone i,j a single stone A (and nothing else!)
   # and the previous move killed with stone A a single stone B in same position i,j
   # then it is a ko
-  def Stone.move_is_ko?(goban, i, j, enemies)
+  def move_is_ko?(color)
     group_a,kill_count = nil,0
-    enemies.each { |enemy| group_a,kill_count = enemy,kill_count+1 if enemy.lives == 1 }
+    each_enemy(color) { |enemy| group_a,kill_count = enemy,kill_count+1 if enemy.lives == 1 }
     return false if kill_count != 1
     return false if group_a.stones.size != 1
-    stone_a = group_a.stones[0]
-    return false if goban.history.last != stone_a
+    stone_a = group_a.stones.first
+    return false if @goban.previous_stone != stone_a
     
-    group_b = goban.killed_groups.last
+    group_b = @goban.killed_groups.last
     return false if group_b.killed_by != stone_a
     return false if group_b.stones.size != 1
-    stone_b = group_b.stones[0]
+    stone_b = group_b.stones.first
     return false if stone_b.i != i or stone_b.j != j
+
+    $log.debug("ko in #{@i}, #{@j}, color:#{color} cannot be played now") if $debug
     return true # a ko!
   end
 
-  # Returns an array of "coordinate changers" to get positions around any stone
-  def Stone.coords_around
-    return XY_AROUND
+  def Stone.play_at(goban,i,j,color)
+    stone = goban.play_at(i,j,color)
+    stone.put_down(color)
+    return stone
   end
 
-  def Stone.look_around(goban,i,j,color)
-    allies=[]
-    enemies=[]
-    lives=0
-    # puts "looking around "+i.to_s+","+j.to_s
-    XY_AROUND.each do |cc|
-      stone = goban.stone_at?(i+cc[0], j+cc[1])
-      if stone!=nil
-        if stone!=EMPTY
-          group=stone.group
-          if stone.color == color
-            allies.push(group) if allies.find_index(group)==nil
-          else
-            enemies.push(group) if enemies.find_index(group)==nil
-          end
-        else 
-          lives+=1
-        end
+  def die
+    update_around_before_die
+    @color = EMPTY
+  end
+  
+  def resuscitate(group)
+    @group = group
+    @color = group.color
+    update_around_on_new
+  end
+
+  # Called to undo a single stone (the main undo feature relies on this)  
+  def Stone.undo(goban)
+    stone = goban.undo()
+    return if ! stone
+    $log.debug("Stone.undo #{stone}") if $debug
+    stone.take_back 
+  end
+  
+  # Iterate through enemy groups
+  # This is simply done by going through all colors but EMPTY and the ally (our own color)
+  def each_enemy(ally_color)
+    0.upto(@@num_colors - 1) do |color|
+      next if color == ally_color
+      @around[color].each do |enemy|
+        raise "Unexpected error (dead or merged enemy)" if enemy.merged_by or enemy.killed_by
+        yield enemy
       end
     end
-    return lives, allies, enemies
   end
 
-  def look_around_for_enemies()
-    lives, allies, enemies = Stone.look_around(@goban,@i,@j,@color)
-    return enemies
-  end
-
-  # Counts how many empty positions (life) are around a stone
-  # not used but tested
-  def look_around_for_lives()
-    lives, allies, enemies = Stone.look_around(@goban,@i,@j,@color)
-    return lives
-  end
-    
-  def put_down(i,j)
-    @i=i
-    @j=j
-    @goban.play(i,j,self)
-    lives, allies, enemies = Stone.look_around(@goban,@i,@j,@color)
-    if allies.size==0
-      @group=Group.new(@goban,self,lives)
+  # Called for each new stone played
+  def put_down(color)
+    @color = color
+    allies = @around[color]
+    if allies.size == 0
+      @group = Group.new(@goban,self,@around[EMPTY].size)
     else
-      @group=allies[0]
-      allies[1,allies.size-1].each { |group| @group.merge(group) }
-      @group.connect_stone(self,lives)
+      @group = allies.first
+      @group.connect_stone(self)
+      1.upto(allies.size-1) { |a| @group.merge(allies[a],self) }
     end
-    enemies.each { |g| g.attack(self) }
+    update_around_on_new
+    each_enemy(color) { |g| g.attacked_by(self) }
   end
 
   def take_back()
-    while @goban.merged_groups.last().merged_with == @group do
+    while @goban.merged_groups.last().merged_by == self do
       ally = @goban.merged_groups.last()
+      $log.debug("take_back: about to unmerge "+ally.to_s) if $debug
       @group.unmerge(ally)
     end
+    $log.debug("take_back: about to disconnect "+self.to_s) if $debug
+    @group.disconnect_stone(self)
+    each_enemy(@color) { |g| g.not_attacked_anymore(self) }
+    update_around_before_die
+    $log.debug("take_back: end; main group: #{@group.debug_dump}") if $debug
+
+    @group = nil
+    @color = EMPTY
+
     while @goban.killed_groups.last().killed_by == self do
       enemy = @goban.killed_groups.last()
+      $log.debug("take_back: about to resuscitate "+enemy.to_s) if $debug
       enemy.resuscitate()
     end
-    lives, allies, enemies = Stone.look_around(@goban,@i,@j,@color)
-    enemies.each { |g| g.add_lives(1) }
-    @group.disconnect_stone(self,lives) # NB @group == allies[0]
-    @goban.undo(self)
   end
+  
+  def update_around_on_new
+    @neighbors.each do |s|
+      s.around[EMPTY].delete(self)
+      a = s.around[@color]
+      a.push(@group) if ! a.find_index(@group)
+    end
+  end
+
+  def update_around_before_die
+    $log.debug("update_around_before_die #{self.debug_dump} removing ##{@group.ndx} from around refs") if $debug
+    @neighbors.each do |s|
+      s.around[EMPTY].push(self)
+      a = s.around[@color]
+      if (ndx = a.find_index(@group))
+        $log.debug("update_around_before_die: removing ##{@group.ndx} from #{s}") if $debug
+        other_neighbor = false
+        s.neighbors.each do |stone|
+          if stone != self and stone.group == @group
+            other_neighbor = true
+            break
+          end
+        end
+        a.delete(@group) if ! other_neighbor
+        $log.debug("update_around_before_die: not removed since other neighbor exists") if $debug and other_neighbor
+      end # if ndx
+    end
+  end
+
+  def set_group_on_merge(new_group)
+    # replace any reference to the old group by the new one
+    @neighbors.each do |s|
+      a = s.around[@color]
+      ndx = a.find_index(@group)
+      a[ndx] = new_group if ndx
+    end
+    @group = new_group
+  end
+
 end
-
-
