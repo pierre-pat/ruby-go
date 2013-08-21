@@ -10,15 +10,17 @@ class TestTimer
 
   # Call this before start() if you want to compute the ratio automatically
   def calibrate()
+    expected = 3.2 # this will have to be adjusted unless we find the perfect calibration test (utopia)
     t0 = Time.now
-    1.upto(400) do
+    1.upto(2000) do
       m = {}
       0.upto(99) { |n| m[n.to_s] = n }
       0.upto(999) { |n| m[n.modulo(100).to_s] += 1 }
     end
     duration = Time.now - t0
-    @ratio = duration / 0.80
-    puts "TestTimer calibrated at ratio=#{'%.02f' % @ratio}"
+    @ratio = duration / expected
+    puts "TestTimer calibrated at ratio=#{'%.02f' % @ratio} "+
+    	"(ran calibration test in #{'%.03f' % duration} instead of #{expected})"
   end
   
   # Starts timing
@@ -43,7 +45,7 @@ class TestTimer
   def result_report
     s = ""
     s << "Test \"#{@test_name}\":"
-    s << " time: #{'%.02f' % @duration}s (#{'%.02f' % @expected_time} hence #{'%.02f' % (@duration / @expected_time * 100)}%)"
+    s << " time: #{'%.02f' % @duration}s (expected #{'%.02f' % @expected_time} hence #{'%.02f' % (@duration / @expected_time * 100)}%)"
     s << " GC runs: #{@num_gc} (#{@expected_gc})"
   end
 
