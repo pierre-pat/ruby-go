@@ -152,7 +152,7 @@ class Stone
     @color = EMPTY
   end
   
-  def resuscitate(group)
+  def resuscitate_in(group)
     @group = group
     @color = group.color
     # update_around_on_new

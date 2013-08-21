@@ -162,7 +162,7 @@ class Group
   def resuscitate
     $log.debug("Group resuscitating: #{self.debug_dump}") if $debug
     stones.each do |stone|
-      stone.resuscitate(self)
+      stone.resuscitate_in(self)
       stone.unique_enemies(@color).each do |enemy|
         $log.debug("nearby enemy: #{enemy.debug_dump}") if $debug
         enemy.attacked_by_resuscitated(stone) 
