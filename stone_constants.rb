@@ -1,8 +1,8 @@
 
 # Special stone values in goban
-EMPTY =- 1
 BORDER = nil
 
 # Colors
+EMPTY = -1
 BLACK=0
 WHITE=1
