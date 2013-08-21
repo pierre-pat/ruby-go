@@ -268,5 +268,24 @@ class TestGroup < Test::Unit::TestCase
     init_board(5,2,0)
     @controller.play_moves("e1,e2,c1,d1,d2,e1,e3,e1,undo,undo,undo,undo")
   end
+  
+  # Makes sure that die & resuscite actions behave well
+  def test_and_again_undo
+    init_board(5,2,0)
+    @controller.play_moves("a1,b1,c3")
+    ws = @goban.stone_at?(1,1)
+    wg = ws.group
+    @controller.play_moves("a2")
+    assert_equal(0,wg.lives)
+    assert_equal(EMPTY,ws.color)
+    assert_equal(true,ws.group == nil)
+    @controller.play_moves("undo")
+    assert_equal(1,wg.lives)
+    assert_equal(BLACK,ws.color)
+    @controller.play_moves("c3,a2") # and kill again the same
+    assert_equal(0,wg.lives)
+    assert_equal(EMPTY,ws.color)
+    assert_equal(true,ws.group == nil)
+  end
 
 end

@@ -46,11 +46,10 @@ class Group
     return s
   end
 
+  # debug dump does not have more to display now that stones are simpler
+  # TODO: remove it unless stones get more state data to display
   def debug_dump
-    s = to_s
-    s << "\n"
-    stones.each { |stone| s << "    #{stone.debug_dump}\n" }
-    return s
+    return to_s
   end
   
   def stones_dump
@@ -97,14 +96,14 @@ class Group
   # When a new stone appears next to this group
   def attacked_by(stone)
     @lives -= 1
-    die_from(stone) if @lives == 0
+    die_from(stone) if @lives <= 0 # also check <0 so we can raise in die_from method
   end
 
   # When a group of stones reappears because we undo
   # NB: it can never kill anything
   def attacked_by_resuscitated(stone)
-    $log.debug("#{self} attacked by resuscitated #{stone}") if $debug
     @lives -= 1
+    $log.debug("#{self} attacked by resuscitated #{stone}") if $debug
     raise "Unexpected error (lives<1 on attack by resucitated)" if @lives<1
   end
 
@@ -149,6 +148,7 @@ class Group
   # Called when the group has no more life left
   def die_from(killer_stone)
     $log.debug("Group dying: #{self}") if $debug
+    raise "Unexpected error (lives<0)" if @lives < 0
     stones.each do |stone|
       stone.unique_enemies(@color).each { |enemy| enemy.not_attacked_anymore(stone) }
       stone.die
@@ -160,21 +160,18 @@ class Group
   
   # Called when "undo" operation removes the killer stone of this group
   def resuscitate
-    $log.debug("Group resuscitating: #{self.debug_dump}") if $debug
+    @killed_by = nil
+    @lives = 1 # always comes back with a single life
     stones.each do |stone|
       stone.resuscitate_in(self)
-      stone.unique_enemies(@color).each do |enemy|
-        $log.debug("nearby enemy: #{enemy.debug_dump}") if $debug
-        enemy.attacked_by_resuscitated(stone) 
-      end
+      stone.unique_enemies(@color).each { |enemy| enemy.attacked_by_resuscitated(stone) }
     end
-    @killed_by = nil
   end
 
   def Group.resuscitate_from(killer_stone,goban)
     while goban.killed_groups.last().killed_by == killer_stone do
       group = goban.killed_groups.pop
-      $log.debug("take_back: about to resuscitate "+group.to_s) if $debug
+      $log.debug("taking back #{killer_stone} so we resuscitate #{group.debug_dump}") if $debug
       group.resuscitate()
     end
   end
