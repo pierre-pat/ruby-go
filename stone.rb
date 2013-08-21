@@ -71,6 +71,11 @@ class Stone
   def to_text
     return COLOR_CHARS[@color]
   end
+  
+  def Stone.char_to_color(char)
+    return EMPTY if char == COLOR_CHARS[EMPTY] # we have to because EMPTY is -1, not COLOR_CHARS.size
+    return COLOR_CHARS.index(char)
+  end
 
   # Returns the name of the color/player for this stone (e.g. "black")
   def Stone.color_name(color)
@@ -144,12 +149,14 @@ class Stone
   # color should not be a player's color nor EMPTY unless we do not plan to 
   # continue the game on this goban (or we plan to restore everything we marked)
   def mark_a_spot!(color) # TODO refactor me
+    $log.debug("marking in #{@i},#{@j} with color #{color} (old value: #{@color})") if $debug
     @color = color
   end
 
   def die
     # update_around_before_die
     @color = EMPTY
+    @group = nil # at this moment we can omit this but cleaner
   end
   
   def resuscitate_in(group)
