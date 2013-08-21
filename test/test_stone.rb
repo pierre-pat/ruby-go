@@ -20,19 +20,20 @@ class TestStone < Test::Unit::TestCase
   
   def how_many_lives?(i,j)
     s = @goban.stone_at?(i,j)
-    lives_before = s.around[EMPTY].size
+    lives_before = s.empties.size
     
     # we test the play/undo too
     s = Stone.play_at(@goban,i,j,WHITE)
-    lives = s.around[EMPTY].size
+    lives = s.empties.size
     assert_equal(lives_before, lives)
     Stone.undo(@goban)
     
-    lives_after = s.around[EMPTY].size
+    lives_after = s.empties.size
     assert_equal(lives_after, lives)
     return lives
   end
   
+  # Not very useful anymore for stones
   def test_how_many_lives
     assert_equal(2,how_many_lives?(1,1))
     assert_equal(2,how_many_lives?(@goban.size,@goban.size))
