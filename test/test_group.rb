@@ -145,6 +145,20 @@ class TestGroup < Test::Unit::TestCase
     # @goban.debug_display
   end
 
+  def check_group(g, ndx,num_stones,color,stones,lives)
+    assert_equal(ndx,g.ndx)
+    assert_equal(num_stones,g.stones.size)
+    assert_equal(color,g.color)
+    assert_equal(lives,g.lives)
+    assert_equal(stones,g.stones_dump)
+  end
+
+  def check_stone(s,color,move,around)
+    assert_equal(color, s.color)
+    assert_equal(move, s.as_move)
+    assert_equal(around, s.lives_dump)
+  end
+
   # Verifies the around values are updated after merge
   # 5 +++++
   # 4 ++@++
@@ -156,10 +170,7 @@ class TestGroup < Test::Unit::TestCase
     b1=Stone.play_at(@goban, 1, 3, BLACK)
     bg1=b1.group
     w1=Stone.play_at(@goban, 1, 2, WHITE)
-    wg1=w1.group
     assert_equal(2,w1.group.lives)
-    assert_equal(2,w1.around[EMPTY].size)
-    assert_equal(2,b1.around[EMPTY].size) # unlike the pic above, b3 is not yet played, hence 2
     b2=Stone.play_at(@goban, 3, 3, BLACK)
     bg2=b2.group
     assert_equal(true, bg1 != bg2)
@@ -168,34 +179,23 @@ class TestGroup < Test::Unit::TestCase
       # ++@
       # O+O
       # @++      
-      assert_equal(1,b1.around[WHITE].size)
-      w2_enemies = w2.around[BLACK]
-      assert_equal(1,w2_enemies.size)
-      assert_equal(bg2,w2_enemies[0]) # enemy of w2 is bg2
       em=@goban.stone_at?(4,3)
-      assert_equal(1,em.around[BLACK].size)
-      assert_equal(bg2,em.around[BLACK][0])
       # now merge black groups:
       b3=Stone.play_at(@goban, 2, 3, BLACK)
       assert_equal(true, (b1.group == b2.group) && (b3.group == b1.group))
-      assert_equal(true, b1.group == bg1) # and group #1 was used as main (not mandatory but for now it is the case)
-      assert_equal(1,w2_enemies.size) # still 1
-      assert_equal(bg1,w2_enemies[0]) # but the enemy group should be bg1 now (since bg2 merged with bg1)
-      assert_equal(bg1,em.around[BLACK][0]) # same for empty spot next to black group
-      assert_equal(1,b1.group.ndx)
+      assert_equal(3, b1.group.ndx) # and group #3 was used as main (not mandatory but for now it is the case)
       assert_equal(5,b1.group.lives)
       # now get back a bit
       Stone.undo(@goban)
-      # not so happy about the asserts below but they test so many things faster...
-      assert_equal("{group #1 of 1 black stones [a3], lives:2}",bg1.to_s)
-      assert_equal("stoneO:a3 around:  +[a4 b3] O[] @[#2]",b1.debug_dump)
-      assert_equal("{group #2 of 1 white stones [a2], lives:2}",w1.group.to_s)      
-      assert_equal(true, "stone@:a2 around:  +[b2 a1] O[#1] @[]" == w1.debug_dump ||
-                         "stone@:a2 around:  +[a1 b2] O[#1] @[]" == w1.debug_dump)
-      assert_equal("{group #3 of 1 black stones [c3], lives:3}",bg2.to_s)
-      assert_equal("stoneO:c3 around:  +[d3 c2 b3] O[] @[#4]",b2.debug_dump)
-      assert_equal("{group #4 of 1 white stones [c4], lives:3}",w2.group.to_s)
-      assert_equal("stone@:c4 around:  +[c5 d4 b4] O[#3] @[]",w2.debug_dump)
+      
+      check_group(bg1, 1,1,0,"a3",2) # group #1 of 1 black stones [a3], lives:2
+      check_stone(b1, 0,"a3","a4,b3") # stoneO:a3 around:  +[a4 b3]
+      check_group(w1.group, 2,1,1,"a2",2) # group #2 of 1 white stones [a2], lives:2
+      check_stone(w1, 1,"a2","a1,b2") # stone@:a2 around:  +[a1 b2]
+      check_group(bg2, 3,1,0,"c3",3) # group #3 of 1 black stones [c3], lives:3
+      check_stone(b2, 0,"c3","b3,c2,d3") # stoneO:c3 around:  +[d3 c2 b3]
+      check_group(w2.group, 4,1,1,"c4",3) # group #4 of 1 white stones [c4], lives:3 
+      check_stone(w2, 1,"c4","b4,c5,d4") # stone@:c4 around:  +[c5 d4 b4]
       # the one below is nasty: we connect with black, then undo and reconnect with white
       assert_equal(BLACK, @controller.cur_color) # otherwise things are reversed below
       @controller.play_moves("c2,b2,pass,b4,b3,undo,b4,pass,b3")
@@ -205,27 +205,36 @@ class TestGroup < Test::Unit::TestCase
       # @@O++ 2 @@O++
       # +++++ 1 +++++
       # abcde   abcde
-      assert_equal("{group #1 of 1 black stones [a3], lives:1}",bg1.to_s)
-      assert_equal("stoneO:a3 around:  +[a4] O[] @[#2]",b1.debug_dump)
-      assert_equal("{group #2 of 5 white stones [a2,b2,b3,c4,b4], lives:6}",wg1.to_s)
-      assert_equal("stone@:a2 around:  +[a1] O[#1] @[#2]",w1.debug_dump)
-      assert_equal("stone@:b2 around:  +[b1] O[#3] @[#2]",wg1.stones[1].debug_dump)
-      assert_equal("stone@:b3 around:  +[] O[#1 #3] @[#2 #2]",wg1.stones[2].debug_dump)
-      assert_equal("stone@:c4 around:  +[c5 d4] O[#3] @[#2]",w2.debug_dump)
-      assert_equal("stone@:b4 around:  +[b5 a4] O[] @[#2]",wg1.stones[4].debug_dump)
-      assert_equal("{group #3 of 2 black stones [c3,c2], lives:3}",bg2.to_s)
-      assert_equal("stoneO:c3 around:  +[d3] O[#3] @[#2]",b2.debug_dump)
-      assert_equal("stoneO:c2 around:  +[d2 c1] O[#3] @[#2]",bg2.stones[1].debug_dump)
+      check_group(bg1, 1,1,0,"a3",1) # group #1 of 1 black stones [a3], lives:1
+      check_stone(b1, 0,"a3","a4") # stoneO:a3 around:  +[a4]
+      wgm = w1.group # white group after merge
+      check_group(wgm, 4,5,1,"a2,b2,b3,b4,c4",6)
+      check_stone(w1, 1,"a2","a1") # stone@:a2 around:  +[a1]
+      check_stone(@goban.stone_at?(2,2), 1,"b2","b1") # stone@:b2 around:  +[b1]
+      check_stone(@goban.stone_at?(2,3), 1,"b3","") # stone@:b3 around:  +[]
+      check_stone(@goban.stone_at?(2,4), 1,"b4","a4,b5") # stone@:b4 around:  +[b5 a4]
+      check_stone(w2, 1,"c4","c5,d4") # stone@:c4 around:  +[c5 d4]
+      check_group(bg2, 3,2,0,"c2,c3",3); # group #3 of 2 black stones [c3,c2], lives:3
+      check_stone(b2, 0,"c3","d3") # stoneO:c3 around:  +[d3]
+      check_stone(@goban.stone_at?(3,2), 0,"c2","c1,d2") # stoneO:c2 around:  +[d2 c1]
       @controller.play_moves("undo,undo,undo,undo")
       # @goban.debug_display # if any assert shows you might need this to understand what happened...
     end
   end
-
+  
   # Fixed bug. This was when undo removes a "kill" and restores a stone 
   # ...which attacks (wrongfully) the undone stone
   def test_ko_bug1
     init_board(9,2,5)
     @controller.play_moves("e4,e3,f5,f4,g4,f2,f3,d1,f4,undo,d2,c2,f4,d1,f3,undo,c1,d1,f3,g1,f4,undo,undo,f6")
+  end
+
+  # At the same time a stone kills (with 0 lives left) and connects to existing surrounded group,
+  # killing actually the enemy around. We had wrong raise showing since at a point the group
+  # we connect to has 0 lives. We simply made the raise test accept 0 lives as legit.
+  def test_kamikaze_kill_while_connect
+    init_board(5,2,0)
+    @controller.play_moves("a1,a3,b3,a4,b2,b1,b4,pass,a5,a2,a1,a2,undo,undo")
   end
   
   # This was not a bug actually but the test is nice to have.
@@ -246,10 +255,18 @@ class TestGroup < Test::Unit::TestCase
     @controller.play_moves("i1,d3,i3,d4,i5,d5,i7,d6,undo")
   end
 
-  # at this moment this corresponds more or less to the speed test case too
+  # At this moment this corresponds more or less to the speed test case too
   def test_various1
     init_board(9,2,0)
     @controller.play_moves("pass,b2,a2,a3,b1,a1,d4,d5,a2,e5,e4,a1,undo,undo,undo,undo,undo,undo")
+  end
+  
+  # This test for fixing bug we had if a group is merged then killed and then another stone played
+  # on same spot as the merging stone, then we undo... We used to only look at merging stone to undo a merge.
+  # We simply added a check that the merged group is also the same.
+  def test_another_undo
+    init_board(5,2,0)
+    @controller.play_moves("e1,e2,c1,d1,d2,e1,e3,e1,undo,undo,undo,undo")
   end
 
 end
