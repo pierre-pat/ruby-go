@@ -50,8 +50,6 @@ class Goban
   def debug_display
     puts "Board:"
     _to_console {|s| print(s.empty? ? "+" : s.to_text) }
-    puts "Lives around each stone:"
-    _to_console {|s| print s.around[EMPTY].size}
     puts "Groups:"
     groups={}
     _to_console do |s|
@@ -83,7 +81,13 @@ class Goban
   def stone_at?(i,j)
     return @ban[j][i]
   end
-
+  
+  def color?(i,j)
+    stone = @ban[j][i]
+    return stone.color if stone
+    return BORDER
+  end
+  
   # Plays a stone and stores it in history
   # Actually we simply return the existing stone and the caller will update it
   def play_at(i,j,color)
