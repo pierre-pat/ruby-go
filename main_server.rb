@@ -18,28 +18,81 @@ class MainServer
 
   def initialize
     @controller = nil
+    @webserver = nil
+    @session = nil
   end
-
+  
   def start
     $log.info("Starting the server...")
     puts "Please open a web browser on http://localhost:#{PORT}/index"
-    webserver = TCPServer.new("localhost",PORT)
-    while(ses = webserver.accept)
-      # for HTML answer
-      ses.print "HTTP/1.1 200/OK\r\nContent-type:text/html\r\n\r\n"
-      handle_request(ses)
-      ses.close
+    @webserver = TCPServer.new("localhost",PORT)
+    loop do
+      req = get_session_and_request
+      reply = handle_request(req)
+      send_response(reply)
+    end
+  end
+
+  def get_session_and_request
+    begin
+      if @session == nil
+        pre_session = @webserver.accept
+        pre_session.close # TODO understand why we need to kill the 1st session...
+        @session = @webserver.accept
+        $log.info("Got session: #{@session}")
+      end
+      raise "Connection dropped" if ! (req = @session.gets)
+    rescue => err
+      if err.class.name != "Errno::ECONNRESET" and err.message != "Connection dropped" # connection dropped or closed by the remote host
+        $log.error("Unexpected error: #{err.class}, msg:#{err.message}")
+      else
+        $log.info("Connection dropped or timed-out; we will create a new session (no issue)")
+      end
+      close_session
+      retry
+    end
+    $log.debug("Request received: \"#{req}\"") if $debug
+    @keep_alive = false
+    while("" != (r = @session.gets.chop)) do
+      $log.debug("...\"#{r}\"") if $debug
+      @keep_alive = true if /Connection:[ ]*Keep-Alive/ === r
+    end
+    return req.chop
+  end
+
+  def close_session
+    @session.close
+    @session = nil
+  end
+  
+  def send_response(reply)
+    header = response_header?(reply)
+    begin
+      @session.print header
+      @session.print reply # can throw Broken pipe (Errno::EPIPE)
+      close_session if ! @keep_alive
+    rescue => err
+      $log.error("Unexpected error: #{err.class}, msg:#{err.message}") 
+      close_session # always close after error here
     end
   end
   
-  def handle_request(ses)
-    req = ses.gets
-    puts "Request received (1st line): "+req
+  def response_header?(reply)
+    header = "HTTP/1.0 200 OK\r\n"
+    header<< "Date: #{Time.now.ctime}\r\n"
+    header<< if @keep_alive then "Connection: Keep-Alive\r\n" else "Connection: close\r\n" end
+    header<< "Server: local Ruby\r\n"
+    header<< "Content-Type: text/html; charset=UTF-8\r\nContent-Length: #{reply.length}\r\n\r\n"
+    $log.debug("Header returned:\r\n#{header}") if $debug
+    return header
+  end
+  
+  def handle_request(req)
     url,args = parse_request(req)
     if ! @controller and url != "/newGame" and url != "/index"
-      ses.print("Invalid request before starting a game: #{url}")
-      return
+      return "Invalid request before starting a game: #{url}"
     end
+    reply = ""
     case url
       when "/newGame" then new_game(args)
       when "/move" then new_move(args)
@@ -49,11 +102,12 @@ class MainServer
       when "/continue" then nil
       when "/history" then command("history")
       when "/dbg" then command("dbg")
-      when "/index" then ses.print(File.read(INDEX_PAGE)); return
-      else ses.print("Unknown request: #{url}")
+      when "/index" then return File.read(INDEX_PAGE)
+      else reply << "Unknown request: #{url}"
     end
     ai_played = @controller.let_ai_play
-    ses.print(web_display(@controller.goban,ai_played))
+    reply << web_display(@controller.goban,ai_played)
+    return reply
   end
   
   def parse_request(req_str)
@@ -96,7 +150,12 @@ class MainServer
   # http://localhost:8080/move?at=b3
   def new_move(args)
     move=get_arg(args,"at")
-    @controller.play_one_move(move)
+    begin
+      @controller.play_one_move(move)
+    rescue RuntimeError => err
+      raise if ! err.message.start_with?("Invalid move")
+      @controller.add_message("Ignored move #{move} because the game displayed was not the latest one.")
+    end
   end
   
   def web_display(goban,ai_played)
@@ -105,7 +164,8 @@ class MainServer
     size=goban.size
     s="<html><head>"
     s << "<style>body {background-color:#f0f0f0; font-family: tahoma, sans serif; font-size:90%} "
-    s << "a:link {text-decoration:none} "
+    s << "a:link {text-decoration:none; color:#0000FF} a:visited {color:#0000FF} "
+    s << "a:hover {color:#00D000} a:active {color:#FFFF00} \n"
     s << "table {border: 1px solid black;} td {width: 15px;}</style>"
     s << "</head><body><table>"
     size.downto(1) do |j|
