@@ -36,17 +36,19 @@ class MainServer
   def get_session_and_request
     begin
       if @session == nil
-        pre_session = @webserver.accept
-        pre_session.close # TODO understand why we need to kill the 1st session...
         @session = @webserver.accept
+        # With IE, the first request is empty so we will raise, rescue, close and reopen. Not sure why...
+        @session.recv_nonblock(5,Socket::MSG_PEEK) # raises Errno::EWOULDBLOCK if no data
         $log.info("Got session: #{@session}")
       end
       raise "Connection dropped" if ! (req = @session.gets)
     rescue => err
-      if err.class.name != "Errno::ECONNRESET" and err.message != "Connection dropped" # connection dropped or closed by the remote host
-        $log.error("Unexpected error: #{err.class}, msg:#{err.message}")
+      if err.class.name == "Errno::EWOULDBLOCK"
+        $log.debug("Closing and reopening the session...") # see comment above about IE
+      elsif err.class.name == "Errno::ECONNRESET" or err.message == "Connection dropped" # connection dropped or closed by the remote host
+        $log.info("Connection dropped or timed-out; we will create a new session (no issue)")        
       else
-        $log.info("Connection dropped or timed-out; we will create a new session (no issue)")
+        $log.error("Unexpected error: #{err.class}, msg:#{err.message}")
       end
       close_session
       retry
@@ -78,7 +80,7 @@ class MainServer
   end
   
   def response_header?(reply)
-    header = "HTTP/1.0 200 OK\r\n"
+    header = "HTTP/1.1 200 OK\r\n"
     header<< "Date: #{Time.now.ctime}\r\n"
     header<< if @keep_alive then "Connection: Keep-Alive\r\n" else "Connection: close\r\n" end
     header<< "Server: local Ruby\r\n"
