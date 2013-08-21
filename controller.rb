@@ -38,6 +38,8 @@ class Controller
 
   # Handles a regular move + the special commands
   def play_one_move(move)
+    return if @game_ended
+    $log.debug("Controller playing move #{move}") if $debug
     if move == "help" then
       add_message "Move (e.g. b3) or pass, undo, resign, history, dbg"
       add_message "Four letter abbreviations are accepted, e.g. \"hist\" is valid to mean \"history\""
@@ -89,7 +91,7 @@ class Controller
   def play_console_game
     raise "Missing player" if @players.find_index(nil)
     @console = true
-    loop do
+    while ! @game_ended
       player = @players[@cur_color]
       move = player.get_move
       begin
@@ -98,7 +100,6 @@ class Controller
         raise if ! err.to_s.start_with?("Invalid move generated:")
         add_message "Invalid move: \"#{move}\""
       end
-      break if @game_ended
     end
     end_game
   end
