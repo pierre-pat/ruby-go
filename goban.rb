@@ -32,42 +32,63 @@ class Goban
   end
   
   # For debugging and text-only; receives a block of code and calls it for each stone
+  # The block should return a string representation
+  # This method returns the concatenated string showing a board
   def _to_console
+    s = ""
     @size.downto(1) do |j|
-      printf "%2d ",j.to_s
-      1.upto(@size) do |i|
-        cell = @ban[j][i]
-        yield cell
-      end
-      print "\n"
+      s << "#{'%2d' % j} "
+      1.upto(@size) { |i| s << yield(@ban[j][i]) }
+      s << "\n"
     end
-    print "   "
-    1.upto(@size) { |i| print(x_label(i)) }
-    print "\n"
+    s << "   "
+    1.upto(@size) { |i| s << x_label(i) }
+    s << "\n"
   end
 
   # For debugging only
   def debug_display
     puts "Board:"
-    _to_console {|s| print(s.empty? ? "+" : s.to_text) }
+    print _to_console { |s| s.to_text }
     puts "Groups:"
     groups={}
-    _to_console do |s|
-      print(s.empty? ? "+" : s.group.ndx); 
+    print _to_console { |s|
       groups[s.group.ndx]=s.group if !s.empty?
-    end
+      (s.empty? ? s.to_text : s.group.ndx.to_s)
+    }
     puts "Full info on groups and stones:"
     1.upto(Group.count) {|ndx| puts groups[ndx].debug_dump if groups[ndx]}
   end
 
   # This display is for debugging and text-only game
   def console_display
-    _to_console {|s| if s.empty? then print "+" else print s.to_text end}
+    print _to_console { |s| s.to_text }
+  end
+
+  # Watch out our images are upside-down on purpose (to help copy paste from screen)
+  # So last row (j==size) comes first in image
+  def image?
+    s = ""
+    @size.downto(1) do |j|
+      1.upto(@size) { |i| s << @ban[j][i].to_text }
+      s << ","
+    end
+    return s.chop!
   end
   
-  # Converts a numeric X coordinate in a letter (e.g 3->c)
-  def x_label(i)
-    return (NOTATION_A+i-1).chr
+  # Watch out our images are upside-down on purpose (to help copy paste from screen)
+  # So last row (j==size) comes first in image
+  def load_image(image)
+    rows = image.split(/\"|,/)
+    raise "Invalid image: #{rows.size} rows instead of #{@size}" if rows.size != @size
+    @size.downto(1) do |j|
+      row = rows[size-j]
+      raise "Invalid image: row #{row}" if row.length != @size
+      1.upto(@size) do |i|
+        color = Stone.char_to_color(row[i-1])
+        @ban[j][i].mark_a_spot!(color)
+      end
+    end
   end
 
   # Basic validation only: coordinates and checks the intersection is empty
@@ -87,7 +108,14 @@ class Goban
     return stone.color if stone
     return BORDER
   end
-  
+
+  # Wil be used for various evaluations (currently for filling a zone)
+  # color should not be a player's color nor EMPTY unless we do not plan to 
+  # continue the game on this goban (or we plan to restore everything we marked)
+  def mark_a_spot!(i,j,color) # TODO refactor me
+    @ban[j][i].mark_a_spot!(color)
+  end
+
   # Plays a stone and stores it in history
   # Actually we simply return the existing stone and the caller will update it
   def play_at(i,j,color)
@@ -105,7 +133,7 @@ class Goban
   def previous_stone
     return @history.last
   end
-  
+
   # Parses a move like "c12" into 3,12
   def Goban.parse_move(move)
     return move[0].ord-NOTATION_A+1, move[1,2].to_i
@@ -113,6 +141,12 @@ class Goban
   
   # Builds a string representation of a move (3,12->"c12")  
   def Goban.move_as_string(col, row)
-    return (col+NOTATION_A-1).chr+row.to_s;
+    return "#{(col+NOTATION_A-1).chr}#{row}"
   end
+  
+  # Converts a numeric X coordinate in a letter (e.g 3->c)
+  def x_label(i)
+    return (i+NOTATION_A-1).chr
+  end
+
 end
