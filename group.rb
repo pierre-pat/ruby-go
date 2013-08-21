@@ -52,20 +52,22 @@ class Group
     stones.each { |stone| s << "    #{stone.debug_dump}\n" }
     return s
   end
+  
+  def stones_dump
+    return stones.map{|s| s.as_move}.sort.join(",")
+  end
 
   # Counts the lives of a stone that are not already in the group
   # (the stone is to be added or removed)
   def lives_added_by_stone(stone)
-    lives = stone.around[EMPTY].size
-    stone.around[EMPTY].each do |life| 
-      life.neighbors.each do |s|
-        if s.group == self and s != stone
-          lives -= 1
-          break
-        end
-      end
+    lives = 0
+    stone.neighbors.each do |life|
+      next if life.color != EMPTY
+      lives += 1 unless true == life.neighbors.each { |s| break(true) if s.group == self and s != stone }
+      # Using any? or detect makes the code clearer but slower :(
+      # lives += 1 unless life.neighbors.any? { |s| s.group == self and s != stone }
     end
-    $log.debug("Lives belonging to #{stone} for group #{self}: #{lives}") if $debug
+    $log.debug("#{lives} lives added by #{stone} for group #{self}") if $debug
     return lives
   end
   
@@ -75,7 +77,7 @@ class Group
     @stones.push(stone)
     @lives += lives_added_by_stone(stone)
     @lives -= 1 if !on_merge # minus one since the connection itself removes 1
-    raise "Unexpected error (lives<1 on connect)" if @lives<1
+    raise "Unexpected error (lives<0 on connect)" if @lives<0 # can be 0 if suicide-kill
     $log.debug("Final group: #{self}") if $debug
   end
   
@@ -86,7 +88,7 @@ class Group
     if @stones.size > 1
       @lives -= lives_added_by_stone(stone)
       @lives += 1 if !on_merge # see comment in connect_stone
-      raise "Unexpected error (lives<1 on disconnect)" if @lives<1
+      raise "Unexpected error (lives<0 on disconnect)" if @lives<0 # can be 0 if suicide-kill
     end
     # we always remove them in the reverse order they came
     if @stones.pop != stone then raise "Unexpected error (disconnect order)" end
@@ -114,6 +116,7 @@ class Group
   
   # Merges a subgroup with this group
   def merge(subgroup, by_stone)
+    raise "Invalid merge" if subgroup.merged_with == self or subgroup == self or @color != subgroup.color
     $log.debug("Merging subgroup:#{subgroup} to main:#{self}") if $debug
     subgroup.stones.each do |s| 
       s.set_group_on_merge(self)
@@ -133,15 +136,21 @@ class Group
       s.set_group_on_merge(subgroup)
     end
     subgroup.merged_by = subgroup.merged_with = nil
-    if @goban.merged_groups.pop != subgroup then raise "Unexpected error (unmerge order)" end
     $log.debug("After unmerge: subgroup:#{subgroup} main:#{self}") if $debug
+  end
+  
+  # This must be called on the main group (stone.group)
+  def unmerge_from(stone)
+    while (subgroup = @goban.merged_groups.last).merged_by == stone and subgroup.merged_with == self
+      unmerge(@goban.merged_groups.pop)
+    end
   end
   
   # Called when the group has no more life left
   def die_from(killer_stone)
     $log.debug("Group dying: #{self}") if $debug
     stones.each do |stone|
-      stone.each_enemy(@color) { |enemy| enemy.not_attacked_anymore(stone) }
+      stone.unique_enemies(@color).each { |enemy| enemy.not_attacked_anymore(stone) }
       stone.die
     end
     @killed_by = killer_stone
@@ -154,13 +163,20 @@ class Group
     $log.debug("Group resuscitating: #{self.debug_dump}") if $debug
     stones.each do |stone|
       stone.resuscitate(self)
-      stone.each_enemy(@color) do |enemy|
+      stone.unique_enemies(@color).each do |enemy|
         $log.debug("nearby enemy: #{enemy.debug_dump}") if $debug
         enemy.attacked_by_resuscitated(stone) 
       end
     end
     @killed_by = nil
-    if @goban.killed_groups.pop != self then raise "Unexpected error (resuscitate order)" end
   end
 
+  def Group.resuscitate_from(killer_stone,goban)
+    while goban.killed_groups.last().killed_by == killer_stone do
+      group = goban.killed_groups.pop
+      $log.debug("take_back: about to resuscitate "+group.to_s) if $debug
+      group.resuscitate()
+    end
+  end
+  
 end
