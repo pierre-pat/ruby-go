@@ -3,10 +3,12 @@ require 'test/unit'
 require_relative "../logging"
 $debug = false # if true it takes forever...
 $log.level=Logger::ERROR
-require_relative "test_timer"
+require_relative "time_keeper"
 
 require_relative "../controller"
 require_relative "../human_player"
+
+$count = 0
 
 class TestSpeed < Test::Unit::TestCase
 
@@ -22,27 +24,40 @@ class TestSpeed < Test::Unit::TestCase
     init_board()
   end
 
+  # Not very fancy: add the line $count += 1 wherever you want to count.
+  # Need some time to try a good profiler soon...
+  def show_count
+    if $count != 0
+      puts "Code called #{$count} times"
+      $count = 0
+    end
+  end
+
   def test_speed
-    t = TestTimer.new
+    tolerance = 1.20
+    t = TimeKeeper.new(tolerance)
     t.calibrate
 
-    t.start("100,000 stones and undo", 3.84, 9)
+    t.start("100,000 stones and undo", 3.84, 11)
     1.upto(10000) do
       play_10_stones
     end
     t.stop
+    show_count
 
-    t.start("35 move game, 2000 times and undo", 4.54, 46)
+    t.start("35 move game, 2000 times and undo", 4.60, 39)
     1.upto(2000) do
       play_game_1
     end
     t.stop
+    show_count
 
-    t.start("35 move game, 2000 times new board each time", 4.87, 22)
+    t.start("35 move game, 2000 times new board each time", 4.87, 26)
     1.upto(2000) do
       play_game_1(false)
     end
     t.stop
+    show_count
   end
 
   def play_10_stones
