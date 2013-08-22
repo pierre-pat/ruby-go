@@ -1,22 +1,19 @@
 require 'test/unit'
 
+require_relative "../goban"
+require_relative "time_keeper"
+
 require_relative "../logging"
 $debug = false # if true it takes forever...
 $log.level=Logger::ERROR
-require_relative "time_keeper"
 
-require_relative "../controller"
-require_relative "../human_player"
 
 $count = 0
 
 class TestSpeed < Test::Unit::TestCase
 
-  def init_board(size=9, num_players=2, handicap=0)
-    @controller = Controller.new(size, num_players, handicap)
-    @controller.set_player(0, HumanPlayer)
-    @controller.set_player(1, HumanPlayer)
-    @goban = @controller.goban
+  def init_board(size=9)
+    @goban = Goban.new(size)
   end
 
   def initialize(x)
@@ -35,6 +32,16 @@ class TestSpeed < Test::Unit::TestCase
 
   def test_speed
     tolerance = 1.20
+    t = TimeKeeper.new(tolerance)
+    t.calibrate(3.2)
+
+    # Basic test
+    t.start("Basic (no move validation) 100,000 stones and undo", 3.84, 11)
+    1.upto(10000) do
+      play_10_stones
+    end
+    t.stop
+    show_count
 
     # prepare games so we isolate the GC caused by that 
     # (in real AI thinking there will be many other things but...)
@@ -51,17 +58,6 @@ class TestSpeed < Test::Unit::TestCase
     #   abcdefghi
     game1 = "c3,f3,d7,e5,c5,f7,e2,e8,d8,f2,f1,g1,e1,h2,e3,d4,e4,f4,d5,d3,d2,c2,c4,d6,e7,e6,c6,f8,e9,f9,d9,c7,c8,b8,b7"
     game1_moves_ij = moves_ij(game1)
-
-    t = TimeKeeper.new(tolerance)
-    t.calibrate
-
-    t.start("100,000 stones (no validation) and undo", 3.84, 11)
-    1.upto(10000) do
-      play_10_stones
-    end
-    t.stop
-    show_count
-
     t.start("35 move game, 2000 times and undo", 4.60, 39)
     1.upto(2000) do
       play_game_and_clean(game1_moves_ij)
@@ -74,6 +70,36 @@ class TestSpeed < Test::Unit::TestCase
     t.start("35 move game, 2000 times new board each time", 4.87, 26)
     1.upto(2000) do
       play_game_and_clean(game1_moves_ij,false)
+    end
+    t.stop
+    show_count
+  end
+
+  def test_speed2
+    tolerance = 1.10
+    t = TimeKeeper.new(tolerance)
+    t.calibrate(0.7)
+    # 9 ++@OO++++
+    # 8 +O@@O++O+
+    # 7 @@@@OOO++
+    # 6 ++@@@@@OO
+    # 5 @@OO@OOOO
+    # 4 OOO+@@@@O
+    # 3 @OOOOO@+@
+    # 2 +++O@@@++
+    # 1 +++OO@+++
+    #   abcdefghi
+    game2 = "c3,c6,e7,g3,g7,e2,d2,b4,b3,c7,g5,h4,h5,d8,e8,e5,c4,b5,e3,f2,c5,f6,f7,g6,h6,d7,a4,a5,b6,a3,a6,b7,a4,a7,d9,c9,b8,e6,d5,d6,e9,g4,f5,f4,e1,f1,d1,i5,i6,e4,i4,i3,h8,c8,d3,i5,f3,g2,i4,b5,b4,a5,i5"
+    game2_moves_ij = moves_ij(game2)
+    # validate the game once
+    play_moves(game2_moves_ij)
+    final_pos = "++@OO++++,+O@@O++O+,@@@@OOO++,++@@@@@OO,@@OO@OOOO,OOO+@@@@O,@OOOOO@+@,+++O@@@++,+++OO@+++"
+    assert_equal(final_pos, @goban.image?);
+    
+    init_board
+    t.start("63 move game, 2000 times and undo", 1.50, 3)
+    1.upto(2000) do
+      play_game_and_clean(game2_moves_ij)
     end
     t.stop
     show_count
@@ -100,6 +126,7 @@ class TestSpeed < Test::Unit::TestCase
 
   def play_game_and_clean(moves_ij, with_undo=true)
     num_moves = moves_ij.size/2
+    $log.debug("About to play a game of #{num_moves} moves") if $debug
     assert_equal(num_moves, play_moves(moves_ij))
 
     if with_undo then
