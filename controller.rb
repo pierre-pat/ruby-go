@@ -47,8 +47,7 @@ class Controller
     elsif move.start_with?("hist")
       show_history
     elsif move == "dbg" then
-      @goban.debug_display
-      add_message "Debug output generated on console window." if ! @console
+      show_debug_info
     elsif move.start_with?("resi")
       if @num_colors == 2 then 
         @game_ended = true
@@ -121,6 +120,11 @@ class Controller
     @history.each {|m| add_message m}
   end
   
+  def show_debug_info
+    @goban.debug_display
+    add_message "Debug output generated on console window." if ! @console
+  end
+
 private
 
   def store_move_in_history(move)

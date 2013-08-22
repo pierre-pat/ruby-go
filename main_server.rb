@@ -102,8 +102,8 @@ class MainServer
       when "/pass" then command("pass")
       when "/resign" then command("resign")
       when "/continue" then nil
-      when "/history" then command("history")
-      when "/dbg" then command("dbg")
+      when "/history" then @controller.show_history
+      when "/dbg" then @controller.show_debug_info
       when "/index" then return File.read(INDEX_PAGE)
       else reply << "Unknown request: #{url}"
     end
@@ -201,9 +201,11 @@ class MainServer
       s << " <br>Who's turn: "+Stone::COLOR_CHARS[@controller.cur_color]
     elsif ended then
       s << "Game ended. <a href='index'>Back to index</a>"
+      @controller.show_history
     else
       s << " <a href='continue'>continue</a> "
     end
+    s << "<br>"
     while txt = @controller.messages.shift do s << "<br>"+txt end
     s << "</body></html>"
     return s
