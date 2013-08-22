@@ -6,18 +6,12 @@ require_relative "stone_constants"
 # Note that most of the work here is to keep this status information up to date.
 class Group
   attr_reader :goban, :stones, :lives, :color
-  attr_reader :merged_with, :merged_by, :killed_by, :sentinel, :ndx
+  attr_reader :merged_with, :merged_by, :killed_by, :ndx
   attr_writer :merged_with, :merged_by # only used in this file
   
-  def Group.init(goban)
-    @@ndx = 0
-    @@sentinel = Group.new(goban, Stone.new(goban,-1,-1,-1), -1)
-    goban.merged_groups.push(@@sentinel)
-    goban.killed_groups.push(@@sentinel)
-  end
-  
   # Create a new group. Always with a single stone.
-  def initialize(goban,stone,lives)
+  # Do not call this using Group.new but Goban#new_group instead.
+  def initialize(goban,stone,lives,ndx)
     @goban = goban
     @stones = [stone]
     @lives = lives
@@ -25,9 +19,8 @@ class Group
     @merged_with = nil # a group
     @merged_by = nil # a stone
     @killed_by = nil # a stone
-    @ndx = @@ndx # unique index (more for debug)
+    @ndx = ndx # unique index
     $log.debug("New group created #{self}") if $debug
-    @@ndx += 1
   end
 
   def recycle!(stone,lives)
@@ -38,19 +31,6 @@ class Group
     @merged_with = @merged_by = @killed_by = nil
     $log.debug("Use (new) recycled group #{self}") if $debug
     return self
-  end
-  
-  # Recycles a group from garbage
-  # Leaves the index @ndx unchanged  
-  def Group.recycle_new(goban,stone,lives)
-    group = goban.garbage_groups.pop
-    return group.recycle!(stone,lives) if group
-    return Group.new(goban,stone,lives)
-  end
-  
-  # Returns the total number of group created (mostly for debug)
-  def Group.count
-    @@ndx
   end
   
   def to_s

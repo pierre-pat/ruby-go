@@ -9,7 +9,6 @@ class Controller
   def initialize(size, num_players=2, handicap=0)
     Stone.init(num_players)
     @goban = Goban.new(size)
-    Group.init(@goban)
     @console = false
     @num_colors = num_players
     @num_pass = 0

@@ -10,7 +10,6 @@ class TestStone < Test::Unit::TestCase
 
   def init_board()
     @goban = Goban.new(5)
-    Group.init(@goban)
   end
 
   def initialize(x)

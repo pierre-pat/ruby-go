@@ -1,6 +1,6 @@
 require_relative "stone_constants"
-require_relative "goban"
-require_relative "group"
+require_relative "goban" # for Goban.move_as_string
+require_relative "group" # for Group.resuscitate_from
 
 # A "stone" stores everything we want to keep track of regarding an intersection on the board.
 # By extension, an empty intersection is also a stone, with a color attribute equals to EMPTY.
@@ -212,7 +212,7 @@ class Stone
     if allies.size == 0
       lives = 0
       @neighbors.each { |s| lives += 1 if s.color == EMPTY }
-      @group = Group.recycle_new(@goban,self,lives)
+      @group = @goban.new_group(self,lives)
     else
       @group = allies.first
       @group.connect_stone(self)

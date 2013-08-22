@@ -1,4 +1,5 @@
 require_relative "stone_constants"
+require_relative "group"
 
 # Stores what we have on the board (namely, the stones and the empty spaces).
 # Giving coordinates, a Goban can return an existing stone.
@@ -12,6 +13,10 @@ class Goban
 
   def initialize(size=19)
     @size = size
+    # We had a few discussions about the added "border" below.
+    # Idea is to avoid to have to check i,j against size in many places.
+    # Also in case of bug, e.g. for @ban[5][-1] Ruby returns you @ban[5][@ban.size] (looping back)
+    # so having a real item (BORDER) on the way is easier to detect as a bug.
     @ban = Array.new(size+2)
     @ban[0] = Array.new(size+2,BORDER)
     @ban[size+1] = Array.new(size+2,BORDER)
@@ -26,10 +31,24 @@ class Goban
         @ban[j][i].find_neighbors
       end
     end
-    @killed_groups = []
-    @merged_groups = []
+    @@sentinel = Group.new(self, Stone.new(self,-1,-1,-1), -1, 0)
+    @killed_groups = [@@sentinel] # so that we can always do @killed_groups.last.color, etc.
+    @merged_groups = [@@sentinel]
     @garbage_groups = []
+    @num_groups = 0
     @history = []
+  end
+  
+  # Allocate a new group or recycles one from garbage list.
+  # For efficiency, call this one, do not call the regular Group.new method.
+  def new_group(stone,lives)
+    group = garbage_groups.pop
+    if group
+      return group.recycle!(stone,lives)
+    else
+      @num_groups += 1
+      return Group.new(self,stone,lives,@num_groups)
+    end
   end
   
   # For debugging and text-only; receives a block of code and calls it for each stone
@@ -58,7 +77,7 @@ class Goban
       (s.empty? ? s.to_text : s.group.ndx.to_s)
     }
     puts "Full info on groups and stones:"
-    1.upto(Group.count) {|ndx| puts groups[ndx].debug_dump if groups[ndx]}
+    1.upto(@num_groups) {|ndx| puts groups[ndx].debug_dump if groups[ndx]}
   end
 
   # This display is for debugging and text-only game
