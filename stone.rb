@@ -173,8 +173,11 @@ class Stone
     stone.take_back 
   end
   
-  # Iterate through enemy groups (same group can appear more than once)
-  # This is simply done by going through all colors but EMPTY and the ally (our own color)
+  # Iterate through enemy groups and calls the given block
+  # (same group appears more than once if it faces the stone 2 times or more)
+  # Example: +@@+
+  #          +@O+ <- for stone O, the @ group will be selected 2 times
+  #          ++++
   def each_enemy(ally_color)
     @neighbors.each { |s| yield s.group if s.color != EMPTY and s.color != ally_color }
   end
@@ -187,6 +190,9 @@ class Stone
     return @enemies
   end
 
+  # Iterate through our groups and calls the given block
+  # (same group appears more than once if it faces the stone 2 times or more)
+  # See also each_enemy
   def each_ally(ally_color)
     @neighbors.each { |s| yield s.group if s.color == ally_color }
   end
@@ -206,7 +212,7 @@ class Stone
     if allies.size == 0
       lives = 0
       @neighbors.each { |s| lives += 1 if s.color == EMPTY }
-      @group = Group.new(@goban,self,lives)
+      @group = Group.recycle_new(@goban,self,lives)
     else
       @group = allies.first
       @group.connect_stone(self)

@@ -8,7 +8,7 @@ require_relative "stone_constants"
 class Goban
   NOTATION_A = "a".ord # notation origin; could be A or a
   
-  attr_reader :size, :merged_groups, :killed_groups
+  attr_reader :size, :merged_groups, :killed_groups, :garbage_groups
 
   def initialize(size=19)
     @size = size
@@ -28,6 +28,7 @@ class Goban
     end
     @killed_groups = []
     @merged_groups = []
+    @garbage_groups = []
     @history = []
   end
   

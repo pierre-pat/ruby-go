@@ -21,12 +21,31 @@ class Group
     @goban = goban
     @stones = [stone]
     @lives = lives
-    @color=stone.color
+    @color = stone.color
     @merged_with = nil # a group
     @merged_by = nil # a stone
     @killed_by = nil # a stone
     @ndx = @@ndx # unique index (more for debug)
+    $log.debug("New group created #{self}") if $debug
     @@ndx += 1
+  end
+
+  def recycle!(stone,lives)
+    @stones.clear
+    @stones.push(stone)
+    @lives = lives
+    @color = stone.color
+    @merged_with = @merged_by = @killed_by = nil
+    $log.debug("Use (new) recycled group #{self}") if $debug
+    return self
+  end
+  
+  # Recycles a group from garbage
+  # Leaves the index @ndx unchanged  
+  def Group.recycle_new(goban,stone,lives)
+    group = goban.garbage_groups.pop
+    return group.recycle!(stone,lives) if group
+    return Group.new(goban,stone,lives)
   end
   
   # Returns the total number of group created (mostly for debug)
@@ -80,14 +99,18 @@ class Group
     $log.debug("Final group: #{self}") if $debug
   end
   
-  # Disconnect a stone 
+  # Disconnect a stone
+  # on_merge must be true for merge or unmerge-related call 
   def disconnect_stone(stone, on_merge = false)
     $log.debug("Disconnecting #{stone} from group #{self} (on_merge=#{on_merge})") if $debug
-    # remark: for groups of a single stone we simply let the empty group go (garbage)
+    # groups of 1 stone become empty groups (->garbage)
     if @stones.size > 1
       @lives -= lives_added_by_stone(stone)
       @lives += 1 if !on_merge # see comment in connect_stone
       raise "Unexpected error (lives<0 on disconnect)" if @lives<0 # can be 0 if suicide-kill
+    else
+      @goban.garbage_groups.push(self)
+      $log.debug("Group going to recycle bin: #{self}") if $debug
     end
     # we always remove them in the reverse order they came
     if @stones.pop != stone then raise "Unexpected error (disconnect order)" end
