@@ -140,7 +140,7 @@ class TestGroup < Test::Unit::TestCase
     assert_equal(8, s.group.lives)
     Stone.undo(@goban)
     assert_equal(4, s.group.lives)
-    s2 = @goban.stone_at?(3,1)
+    @goban.stone_at?(3,1)
     assert_equal(4, s.group.lives)
     # @goban.debug_display
   end
@@ -179,7 +179,7 @@ class TestGroup < Test::Unit::TestCase
       # ++@
       # O+O
       # @++      
-      em=@goban.stone_at?(4,3)
+      @goban.stone_at?(4,3)
       # now merge black groups:
       b3=Stone.play_at(@goban, 2, 3, BLACK)
       assert_equal(true, (b1.group == b2.group) && (b3.group == b1.group))
