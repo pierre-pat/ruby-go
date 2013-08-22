@@ -24,7 +24,7 @@ class Controller
   # Sets a player before the game starts
   def set_player(color, player_class)
     @players[color] = player_class.new(self,color)
-    $log.info("Attached new player to game: "+color.to_s+", "+@players[color].to_s)
+    $log.info("Attached new player to game: #{color}, #{@players[color]}")
   end
   
   # game is a series of moves, e.g. "c2,b2,pass,b4,b3,undo,b4,pass,b3"
@@ -67,7 +67,7 @@ class Controller
   # Handles a new stone move (not special commands like "pass")
   def play_a_stone(move)
     i, j = Goban.parse_move(move)
-    raise "Invalid move generated:"+move if !Stone.valid_move?(@goban, i, j, @cur_color)
+    raise "Invalid move generated: #{move}" if !Stone.valid_move?(@goban, i, j, @cur_color)
     Stone.play_at(@goban, i, j, @cur_color)
     store_move_in_history(move)
     next_player!
@@ -135,7 +135,7 @@ private
     end
     @players.each do |p|
       if p.color != @cur_color and !p.on_undo_request(@cur_color)
-        add_message "Undo denied by "+Stone.color_name(p.color)
+        add_message "Undo denied by #{Stone.color_name(p.color)}"
         return false
       end
     end
