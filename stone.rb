@@ -1,6 +1,7 @@
 require_relative "stone_constants"
-require_relative "goban" # for Goban.move_as_string
-require_relative "group" # for Group.resuscitate_from
+# Always require goban first
+# require_relative "goban" # for Goban.move_as_string
+# require_relative "group" # for Group.resuscitate_from
 
 # A "stone" stores everything we want to keep track of regarding an intersection on the board.
 # By extension, an empty intersection is also a stone, with a color attribute equals to EMPTY.

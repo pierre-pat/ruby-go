@@ -1,4 +1,5 @@
 require_relative "stone_constants"
+require_relative "stone"
 require_relative "group"
 
 # Stores what we have on the board (namely, the stones and the empty spaces).

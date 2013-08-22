@@ -1,4 +1,5 @@
 require_relative "stone_constants"
+# Always require goban first
 
 # A group keeps the list of its stones, the updated number of "lives" (empty intersections around),
 # and whatever status information we need to decide what happens to a group (e.g. when a
