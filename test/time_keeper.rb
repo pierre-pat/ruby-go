@@ -9,8 +9,8 @@ class TimeKeeper
   end
 
   # Call this before start() if you want to compute the ratio automatically
-  def calibrate()
-    expected = 3.2 # this will have to be adjusted unless we find the perfect calibration test (utopia)
+  # NB: measures will always vary a bit unless we find the perfect calibration test (utopia)
+  def calibrate(expected)
     t0 = Time.now
     1.upto(2000) do
       m = {}
