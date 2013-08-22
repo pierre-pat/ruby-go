@@ -43,7 +43,7 @@ class MainServer
       end
       raise "Connection dropped" if ! (req = @session.gets)
     rescue => err
-      if err.class.name == "Errno::EWOULDBLOCK"
+      if err.class.name == "Errno::EWOULDBLOCK" or err.class.name == "Errno::EAGAIN"
         $log.debug("Closing and reopening the session...") # see comment above about IE
       elsif err.class.name == "Errno::ECONNRESET" or err.message == "Connection dropped" # connection dropped or closed by the remote host
         $log.info("Connection dropped or timed-out; we will create a new session (no issue)")        
@@ -173,15 +173,15 @@ class MainServer
     size.downto(1) do |j|
       s << "<tr><th>"+j.to_s+"</th>"
       1.upto(size) do |i|
-        cell=goban.stone_at?(i,j)
-        if cell.empty?
+        stone = goban.stone_at?(i,j)
+        if stone.empty?
           if human and Stone.valid_move?(goban,i,j,@controller.cur_color)
             s << "<td><a href='move?at="+goban.x_label(i)+j.to_s+"'>+</a></td>"
           else
             s << "<td>+</td>" # empty intersection we cannot play on (ko or suicide)
           end
         else
-          s << "<td>"+cell.to_text+"</td>"
+          s << "<td>"+goban.stone_to_text(stone.color)+"</td>" # TODO: temporary; use nicer than characters!
         end
       end
       s << "</tr>"
@@ -198,7 +198,7 @@ class MainServer
       s << " <a href='resign'>resign</a> "
       s << " <a href='history'>history</a> "
       s << " <a href='dbg'>debug</a> "
-      s << " <br>Who's turn: "+Stone::COLOR_CHARS[@controller.cur_color]
+      s << " <br>Who's turn: #{@goban.stone_to_text(@controller.cur_color)}"
     elsif ended then
       s << "Game ended. <a href='index'>Back to index</a>"
       @controller.show_history

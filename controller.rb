@@ -7,8 +7,7 @@ class Controller
   attr_reader :goban, :cur_color, :history, :messages, :game_ended
   
   def initialize(size, num_players=2, handicap=0)
-    Stone.init(num_players)
-    @goban = Goban.new(size)
+    @goban = Goban.new(size,num_players)
     @console = false
     @num_colors = num_players
     @num_pass = 0
@@ -128,7 +127,7 @@ class Controller
 private
 
   def store_move_in_history(move)
-    @history.push("#{Stone.color_name(@cur_color)}: #{move}")
+    @history.push("#{@goban.color_name(@cur_color)}: #{move}")
   end
   
   def request_undo
@@ -138,7 +137,7 @@ private
     end
     @players.each do |p|
       if p.color != @cur_color and !p.on_undo_request(@cur_color)
-        add_message "Undo denied by #{Stone.color_name(p.color)}"
+        add_message "Undo denied by #{@goban.color_name(p.color)}"
         return false
       end
     end

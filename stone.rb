@@ -9,19 +9,10 @@ require_relative "stone_constants"
 # and verify if a planned move is authorized.
 class Stone
 
-  COLOR_CHARS = "O@X$+" # NB "+" is for empty color == -1
   XY_AROUND = [[0,1],[1,0],[0,-1],[-1,0]] # top, right, bottom, left
 
-  @@color_names = ["black","white","red","blue"] # not constant as this could be user choice
-  @@num_colors = 2 # default in real world; I would like to see a game with 3 or 4 one day though :)
-  
   attr_reader :goban, :group, :color, :i, :j, :neighbors
   
-  def Stone.init(num_colors)
-    raise "Max player number is #{@@color_names.size}" if num_colors>@@color_names.size
-    @@num_colors = num_colors
-  end
-
   def initialize(goban, i, j, color)
     @goban = goban
     @i = i
@@ -46,7 +37,7 @@ class Stone
   end
   
   def to_s
-    "stone#{to_text}:#{as_move}"
+    "stone#{@goban.stone_to_text(@color)}:#{as_move}"
   end
   
   # Returns "c3" for a stone in 3,3
@@ -68,21 +59,6 @@ class Stone
     return empties.map{|s| s.as_move}.sort.join(",")
   end
   
-  # Returns the "character" used to represent a stone in text style
-  def to_text
-    return COLOR_CHARS[@color]
-  end
-  
-  def Stone.char_to_color(char)
-    return EMPTY if char == COLOR_CHARS[EMPTY] # we have to because EMPTY is -1, not COLOR_CHARS.size
-    return COLOR_CHARS.index(char)
-  end
-
-  # Returns the name of the color/player for this stone (e.g. "black")
-  def Stone.color_name(color)
-    return @@color_names[color]
-  end
-
   def empty?
     return @color == EMPTY
   end

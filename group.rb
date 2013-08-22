@@ -36,7 +36,7 @@ class Group
   
   def to_s
     s = "{group ##{@ndx} of #{@stones.size}"+
-      " #{Stone::color_name(@color)} stones ["
+      " #{@goban.color_name(@color)} stones ["
     @stones.each { |stone| s << "#{stone.as_move}," }
     s.chop!
     s << "], lives:#{@lives}"
