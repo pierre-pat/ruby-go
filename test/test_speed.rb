@@ -46,15 +46,15 @@ class TestSpeed < Test::Unit::TestCase
     # prepare games so we isolate the GC caused by that 
     # (in real AI thinking there will be many other things but...)
     # 35 moves, final position:
-    # 9 +++OO@+++
-    # 8 +@OO@@+++
-    # 7 +O+OO@+++
-    # 6 ++O@@++++
-    # 5 ++OO@++++
-    # 4 ++O+O@+++
-    # 3 ++O+O@+++
-    # 2 ++@OO@+@+
-    # 1 ++++OO@++
+    # 9 +++@@O+++
+    # 8 +O@@OO+++
+    # 7 +@+@@O+++
+    # 6 ++@OO++++
+    # 5 ++@@O++++
+    # 4 ++@+@O+++
+    # 3 ++@+@O+++
+    # 2 ++O@@O+O+
+    # 1 ++++@@O++
     #   abcdefghi
     game1 = "c3,f3,d7,e5,c5,f7,e2,e8,d8,f2,f1,g1,e1,h2,e3,d4,e4,f4,d5,d3,d2,c2,c4,d6,e7,e6,c6,f8,e9,f9,d9,c7,c8,b8,b7"
     game1_moves_ij = moves_ij(game1)
@@ -79,21 +79,21 @@ class TestSpeed < Test::Unit::TestCase
     tolerance = 1.10
     t = TimeKeeper.new(tolerance)
     t.calibrate(0.7)
-    # 9 ++@OO++++
-    # 8 +O@@O++O+
-    # 7 @@@@OOO++
-    # 6 ++@@@@@OO
-    # 5 @@OO@OOOO
-    # 4 OOO+@@@@O
-    # 3 @OOOOO@+@
-    # 2 +++O@@@++
-    # 1 +++OO@+++
+    # 9 ++O@@++++
+    # 8 +@OO@++@+
+    # 7 OOOO@@@++
+    # 6 ++OOOOO@@
+    # 5 OO@@O@@@@
+    # 4 @@@+OOOO@
+    # 3 O@@@@@O+O
+    # 2 +++@OOO++
+    # 1 +++@@O+++
     #   abcdefghi
     game2 = "c3,c6,e7,g3,g7,e2,d2,b4,b3,c7,g5,h4,h5,d8,e8,e5,c4,b5,e3,f2,c5,f6,f7,g6,h6,d7,a4,a5,b6,a3,a6,b7,a4,a7,d9,c9,b8,e6,d5,d6,e9,g4,f5,f4,e1,f1,d1,i5,i6,e4,i4,i3,h8,c8,d3,i5,f3,g2,i4,b5,b4,a5,i5"
     game2_moves_ij = moves_ij(game2)
     # validate the game once
     play_moves(game2_moves_ij)
-    final_pos = "++@OO++++,+O@@O++O+,@@@@OOO++,++@@@@@OO,@@OO@OOOO,OOO+@@@@O,@OOOOO@+@,+++O@@@++,+++OO@+++"
+    final_pos = "++O@@++++,+@OO@++@+,OOOO@@@++,++OOOOO@@,OO@@O@@@@,@@@+OOOO@,O@@@@@O+O,+++@OOO++,+++@@O+++"
     assert_equal(final_pos, @goban.image?);
     
     init_board
