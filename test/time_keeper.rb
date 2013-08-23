@@ -12,10 +12,10 @@ class TimeKeeper
   # NB: measures will always vary a bit unless we find the perfect calibration test (utopia)
   def calibrate(expected)
     t0 = Time.now
-    1.upto(2000) do
+    2000.times do
       m = {}
-      0.upto(99) { |n| m[n.to_s] = n }
-      0.upto(999) { |n| m[n.modulo(100).to_s] += 1 }
+      100.times { |n| m[n.to_s] = n }
+      1000.times { |n| m[n.modulo(100).to_s] += 1 }
     end
     duration = Time.now - t0
     @ratio = duration / expected

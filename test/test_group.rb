@@ -175,7 +175,7 @@ class TestGroup < Test::Unit::TestCase
     bg2=b2.group
     assert_equal(true, bg1 != bg2)
     w2=Stone.play_at(@goban, 3, 4, WHITE)
-    1.upto(3) do
+    3.times do
       # ++@
       # O+O
       # @++      
