@@ -62,6 +62,9 @@ class Goban
   def stone_to_text(color)
     return COLOR_CHARS[color]
   end
+  def color_to_char(color)
+    return COLOR_CHARS[color]
+  end
   
   def char_to_color(char)
     return EMPTY if char == COLOR_CHARS[EMPTY] # we have to because EMPTY is -1, not COLOR_CHARS.size
