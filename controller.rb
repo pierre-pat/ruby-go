@@ -1,5 +1,5 @@
 require_relative "goban"
-require_relative "util.rb"
+require_relative "board_analyser.rb"
 
 # A controller initializes a game and controls the possible user (or AI) actions.
 class Controller
@@ -53,6 +53,8 @@ class Controller
       resign_request
     elsif move == "pass"
       pass_one_move
+    elsif move.start_with?("pris")
+      show_prisoners
     else
       play_a_stone(move)
     end
@@ -141,13 +143,23 @@ class Controller
     add_message "Debug output generated on console window." if ! @console
   end
   
+  def show_prisoners
+    prisoners = Group.prisoners?(@goban)
+    prisoners.size.times do |c|
+      add_message "#{prisoners[c]} #{@goban.color_name(c)} (#{@goban.color_to_char(c)}) are prisoners"
+    end
+    add_message ""
+  end
+  
   def show_score_info
     if @who_resigned
       add_message "#{@goban.color_name(@who_resigned)} resigned"
     end
     scores = @analyser.scores
+    # Counts prisoners
+    prisoners = Group.prisoners?(@goban)
     scores.size.times do |c| 
-      add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): #{scores[c]} points"
+      add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): #{scores[c]-prisoners[c]} points (#{scores[c]} - #{prisoners[c]} prisoners)"
     end
     add_message ""
   end
@@ -192,7 +204,7 @@ private
   end
 
   def we_all_pass!
-    @analyser.countScore
+    @analyser.count_score
     @game_ending = true
   end
   

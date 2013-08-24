@@ -105,6 +105,7 @@ class MainServer
       when "/accept_score" then @controller.accept_score(get_arg(args,"value"))
       when "/load" then question = { action:"play_moves", label:"Load moves" }
       when "/continue" then nil
+      when "/prisoners" then @controller.show_prisoners
       when "/history" then @controller.show_history
       when "/play_moves" then play_moves(args)
       when "/dbg" then @controller.show_debug_info
@@ -222,6 +223,7 @@ class MainServer
       s << " <a href='pass'>pass</a> "
       s << " <a href='resign'>resign</a> "
       s << " <a href='history'>history</a> "
+      s << " <a href='prisoners'>prisoners</a> "
       s << " <a href='load'>load</a> "
       s << " <a href='dbg'>debug</a> "
       s << " <br>Who's turn: #{goban.color_to_char(@controller.cur_color)}<br><br>"

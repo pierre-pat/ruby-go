@@ -21,7 +21,7 @@ class Group
     @merged_by = nil # a stone
     @killed_by = nil # a stone
     @ndx = ndx # unique index
-    $log.debug("New group created #{self}") if $debug
+    # $log.debug("New group created #{self}") if $debug
   end
 
   def recycle!(stone,lives)
@@ -178,6 +178,16 @@ class Group
       $log.debug("taking back #{killer_stone} so we resuscitate #{group.debug_dump}") if $debug
       group.resuscitate()
     end
+  end
+
+  # Returns prisoners grouped by color of dead stones  
+  def Group.prisoners?(goban)
+    prisoners = Array.new(goban.num_colors,0)
+    1.upto(goban.killed_groups.size-1) do |i|
+      g = goban.killed_groups[i]
+      prisoners[g.color] += g.stones.size
+    end
+    return prisoners
   end
   
 end
