@@ -9,16 +9,39 @@ class HumanPlayer < Player
   # For humans this is only called for console game
   def get_move
     @goban.console_display
-    puts "What is #{@goban.color_name(@color)}'s move? (#{@goban.stone_to_text(@color)})"
-    move = ""
-    while move == "" do move = gets.downcase.strip end
-    return move
+    puts "What is #{@goban.color_name(@color)}'s move? (#{@goban.color_to_char(@color)})"
+    return get_answer
   end
   
   def on_undo_request(color)
     return true # TODO: until we implement how to broadcast this to web UI
-    puts "Undo requested by #{@goban.color_name(color)}, do you accept? (y/n)"
-    answer = gets.downcase.strip
-    return answer == "y"
+    # puts "Undo requested by #{@goban.color_name(color)}, do you accept? (y/n)"
+    # return get_answer(["y","n"]) == "y"
   end
+  
+  def propose_score()
+    # @controller.show_debug_info if $debug
+    # @goban.console_display
+    # FIXME: we crash if we want to see the goban normally until a restore is done; make it nicer
+    @controller.analyser.debug_dump
+    @controller.show_score_info
+    puts "Do you accept this score? (y/n)"
+    return get_answer(["y","n"]) == "y"
+  end
+
+private
+
+  def get_answer(valid_ones=nil)
+    while true do
+      answer = gets.downcase.strip
+      next if answer == ""
+      if valid_ones and ! valid_ones.find_index(answer)
+        puts "Valid answers: "+valid_ones.join(",")
+        next
+      end
+      return answer
+    end
+
+  end
+  
 end
