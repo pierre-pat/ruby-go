@@ -35,7 +35,7 @@ class Stone
   end
   
   def to_s
-    "stone#{@goban.stone_to_text(@color)}:#{as_move}"
+    "stone#{@goban.color_to_char(@color)}:#{as_move}"
   end
   
   # Returns "c3" for a stone in 3,3
@@ -124,7 +124,7 @@ class Stone
   # color should not be a player's color nor EMPTY unless we do not plan to 
   # continue the game on this goban (or we plan to restore everything we marked)
   def mark_a_spot!(color) # TODO refactor me
-    $log.debug("marking in #{@i},#{@j} with color #{color} (old value: #{@color})") if $debug
+    # $log.debug("marking in #{@i},#{@j} with color #{color} (old value: #{@color})") if $debug
     @color = color
   end
 
