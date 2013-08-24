@@ -142,7 +142,8 @@ class Controller
     @analyser.debug_dump
     add_message "Debug output generated on console window." if ! @console
   end
-  
+
+  # Show prisoner counts during the game  
   def show_prisoners
     prisoners = Group.prisoners?(@goban)
     prisoners.size.times do |c|
@@ -156,8 +157,8 @@ class Controller
       add_message "#{@goban.color_name(@who_resigned)} resigned"
     end
     scores = @analyser.scores
+    prisoners = @analyser.prisoners
     # Counts prisoners
-    prisoners = Group.prisoners?(@goban)
     scores.size.times do |c| 
       add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): #{scores[c]-prisoners[c]} points (#{scores[c]} - #{prisoners[c]} prisoners)"
     end
