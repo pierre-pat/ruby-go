@@ -19,7 +19,7 @@ class TestFill < Test::Unit::TestCase
     @goban = @controller.goban
     @@x = @goban.char_to_color("X") # we use this color for replacements
     
-    @boan = BoardAnalyser.new(@goban,EMPTY)
+    @boan = BoardAnalyser.new(@goban)
   end
 
   def initialize(x)
@@ -36,12 +36,12 @@ class TestFill < Test::Unit::TestCase
     #   abcde
     @goban.load_image("+O+++,+@+O+,+O+@+,+@+O+,+++@+")
     @goban.console_display
-    @boan.fill_with_color(3,1,@@x)
+    @boan.fill_with_color(3,1,EMPTY,@@x)
     @goban.console_display
     assert_equal("XOXXX,X@XOX,XOX@X,X@XOX,XXX@X", @goban.image?);
 
     @goban.load_image("+O+++,+@+O+,+O+@+,+@+O+,+++@+")
-    @boan.fill_with_color(1,3,@@x)
+    @boan.fill_with_color(1,3,EMPTY,@@x)
     assert_equal("XOXXX,X@XOX,XOX@X,X@XOX,XXX@X", @goban.image?);
   end
 
@@ -54,15 +54,15 @@ class TestFill < Test::Unit::TestCase
     #   abcde
     @goban.load_image("+++++,+OOO+,+O+O+,+++O+,+OOO+")
     # @goban.console_display
-    @boan.fill_with_color(3,3,@@x)
+    @boan.fill_with_color(3,3,EMPTY,@@x)
     assert_equal("XXXXX,XOOOX,XOXOX,XXXOX,XOOOX", @goban.image?);
 
     @goban.load_image("+++++,+OOO+,+O+O+,+++O+,+OOO+")
-    @boan.fill_with_color(1,1,@@x)
+    @boan.fill_with_color(1,1,EMPTY,@@x)
     assert_equal("XXXXX,XOOOX,XOXOX,XXXOX,XOOOX", @goban.image?);
 
     @goban.load_image("+++++,+OOO+,+O+O+,+++O+,+OOO+")
-    @boan.fill_with_color(5,3,@@x)
+    @boan.fill_with_color(5,3,EMPTY,@@x)
     assert_equal("XXXXX,XOOOX,XOXOX,XXXOX,XOOOX", @goban.image?);
   end
 
@@ -75,19 +75,19 @@ class TestFill < Test::Unit::TestCase
     #   abcde
     @goban.load_image("+++O+,+++OO,+O+++,++OO+,+O+O+")
     @goban.console_display
-    @boan.fill_with_color(2,4,@@x)
+    @boan.fill_with_color(2,4,EMPTY,@@x)
     assert_equal("XXXO+,XXXOO,XOXXX,XXOOX,XO+OX", @goban.image?);
 
     @goban.load_image("+++O+,+++OO,+O+++,++OO+,+O+O+")
-    @boan.fill_with_color(2,2,@@x)
+    @boan.fill_with_color(2,2,EMPTY,@@x)
     assert_equal("XXXO+,XXXOO,XOXXX,XXOOX,XO+OX", @goban.image?);
 
     @goban.load_image("+++O+,+++OO,+O+++,++OO+,+O+O+")
-    @boan.fill_with_color(3,1,@@x)
+    @boan.fill_with_color(3,1,EMPTY,@@x)
     assert_equal("+++O+,+++OO,+O+++,++OO+,+OXO+", @goban.image?);
 
     @goban.load_image("+++O+,+++OO,+O+++,++OO+,+O+O+")
-    @boan.fill_with_color(5,5,@@x)
+    @boan.fill_with_color(5,5,EMPTY,@@x)
     assert_equal("+++OX,+++OO,+O+++,++OO+,+O+O+", @goban.image?);
   end
 
@@ -109,5 +109,7 @@ class TestFill < Test::Unit::TestCase
     assert_equal(final_pos, @goban.image?);
 
     @boan.analyse_empty_zones
+    final_zones = "FFO@@EEEE,F@OO@EE@E,OOOO@@@EE,DDOOOOO@@,OO@@O@@@@,@@@COOOO@,O@@@@@OBO,AAA@OOOBB,AAA@@OBBB"
+    assert_equal(final_zones, @boan.image?);
   end
 end
