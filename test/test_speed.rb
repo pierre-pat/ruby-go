@@ -116,7 +116,7 @@ class TestSpeed < Test::Unit::TestCase
     0.step(moves_ij.size - 2, 2) do |n|
       i = moves_ij[n]
       j = moves_ij[n+1]
-      raise "Invalid move generated: #{move}" if !Stone.valid_move?(@goban, i, j, cur_color)
+      raise "Invalid move: #{move}" if !Stone.valid_move?(@goban, i, j, cur_color)
       Stone.play_at(@goban, i, j, cur_color)
       move_count += 1
       cur_color = (cur_color+1) % 2
