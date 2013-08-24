@@ -10,7 +10,8 @@ require_relative "group"
 class Goban
 
   NOTATION_A = "a".ord # notation origin; could be A or a
-  COLOR_CHARS = "@OXS&0*$%:xs+" # NB "+" is for empty color == -1
+  COLOR_CHARS = "@OXS&#*$-:/=?+" # NB "+" is for empty color == -1
+  UNKNOWN_ZONE = -2 # index of ? above; 2 from the end of the string
   
   attr_reader :size, :num_colors, :merged_groups, :killed_groups, :garbage_groups
 
