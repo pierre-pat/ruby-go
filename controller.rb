@@ -1,22 +1,24 @@
-require_relative "stone_constants"
 require_relative "goban"
-require_relative "stone"
+require_relative "util.rb"
 
 # A controller initializes a game and controls the possible user (or AI) actions.
 class Controller
-  attr_reader :goban, :cur_color, :history, :messages, :game_ended
+  attr_reader :goban, :analyser, :cur_color, :history, :messages, :game_ended, :game_ending
   
   def initialize(size, num_players=2, handicap=0)
     @goban = Goban.new(size,num_players)
+    @analyser = BoardAnalyser.new(@goban)
     @console = false
     @num_colors = num_players
     @num_pass = 0
     @cur_color = BLACK
-    @game_ended = false
-    set_handicap_points(handicap) if handicap>0
-    @players = Array.new(num_players,nil)
+    @game_ended = @game_ending = false
+    @who_resigned = nil
     @history = []
     @messages = []
+    @players = Array.new(num_players,nil)
+    @handicap = 0
+    set_handicap_points(handicap) if handicap>0
   end
   
   # Sets a player before the game starts
@@ -48,14 +50,9 @@ class Controller
     elsif move == "dbg" then
       show_debug_info
     elsif move.start_with?("resi")
-      if @num_colors == 2 then 
-        @game_ended = true
-        store_move_in_history("resign")
-      else
-        pass_one_move(move) # if more than 2 players one cannot simply resign (but pass infinitely)
-      end
+      resign_request
     elsif move == "pass"
-      pass_one_move(move)
+      pass_one_move
     else
       play_a_stone(move)
     end
@@ -64,23 +61,30 @@ class Controller
   # Handles a new stone move (not special commands like "pass")
   def play_a_stone(move)
     i, j = Goban.parse_move(move)
-    raise "Invalid move generated: #{move}" if !Stone.valid_move?(@goban, i, j, @cur_color)
+    raise "Invalid move: #{move}" if !Stone.valid_move?(@goban, i, j, @cur_color)
     Stone.play_at(@goban, i, j, @cur_color)
     store_move_in_history(move)
     next_player!
     @num_pass = 0
   end
   
-  def pass_one_move(move)
-    store_move_in_history(move)
+  def pass_one_move
+    store_move_in_history("pass")
     @num_pass += 1
-    if @num_pass == @num_colors then
+    we_all_pass! if @num_pass >= @num_colors
+    next_player!
+  end
+  
+  def resign_request
+    if @num_colors == 2 then 
       @game_ended = true
+      store_move_in_history("resign")
+      @who_resigned = @cur_color
     else
-      next_player!
+      pass_one_move # if more than 2 players one cannot simply resign (but pass infinitely)
     end
   end
-
+  
   def next_player!
     @cur_color = (@cur_color+1) % @num_colors
   end
@@ -89,21 +93,28 @@ class Controller
     raise "Missing player" if @players.find_index(nil)
     @console = true
     while ! @game_ended
+      if @game_ending
+        propose_console_end
+        next
+      end
       player = @players[@cur_color]
       move = player.get_move
       begin
         play_one_move(move)
       rescue StandardError => err
-        raise if ! err.to_s.start_with?("Invalid move generated:")
+        raise if ! err.to_s.start_with?("Invalid move")
         add_message "Invalid move: \"#{move}\""
       end
     end
-    end_game
+    add_message "Game ended."
+    show_history
   end
 
   def let_ai_play
+    return nil if @game_ending or @game_ended
     player = @players[@cur_color]
     return nil if player.is_human
+    $log.debug("controller letting AI play...") if $debug
     move = player.get_move
     play_one_move(move)
     return move     
@@ -115,19 +126,50 @@ class Controller
 
   def show_history
     add_message "Move history:"
-    add_message "(empty)" if @history.empty?
-    @history.each {|m| add_message m}
+    s = ""
+    s << "handicap:#{@handicap}," if @handicap>0
+    @history.size.times {|h| s << "#{@history[h]}," }
+    s.chop!
+    add_message s if s != ""
+    add_message "(#{@history.size} moves)"
+    add_message ""
   end
   
   def show_debug_info
     @goban.debug_display
+    @analyser.debug_dump
     add_message "Debug output generated on console window." if ! @console
+  end
+  
+  def show_score_info
+    if @who_resigned
+      add_message "#{@goban.color_name(@who_resigned)} resigned"
+    end
+    scores = @analyser.scores
+    scores.size.times do |c| 
+      add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): #{scores[c]} points"
+    end
+    add_message ""
+  end
+
+  def accept_score(answer)
+    answer.strip.downcase!
+    if answer!="y" and answer!="n"
+      add_message "Valid answer is y or n"
+      return
+    end
+    if answer == "n"
+      @game_ending = false
+      @analyser.restore
+      return
+    end
+    @game_ended = true
   end
 
 private
 
   def store_move_in_history(move)
-    @history.push("#{@goban.color_name(@cur_color)}: #{move}")
+    @history.push(move)
   end
   
   def request_undo
@@ -149,13 +191,24 @@ private
     return true
   end
 
-  def end_game
-    @goban.console_display
-    add_message "Game ended. Score: ..."
-    # TODO score count and UI; not trivial
-    show_history
+  def we_all_pass!
+    @analyser.countScore
+    @game_ending = true
   end
   
+  def propose_console_end
+    player = @players[@cur_color]
+    # We ask human players; AI always accepts (since it passed)
+    if ! player.is_human or player.propose_score
+      @game_ended = true
+      return true
+    end
+    # Ending refused, we will keep on playing
+    @analyser.restore
+    @game_ending = false
+    return false
+  end
+
   # Initializes the handicap points
   def set_handicap_points(count)
     size = @goban.size
@@ -194,6 +247,7 @@ private
     end
     # white first when handicap
     @cur_color = WHITE
+    @handicap = count # keep for later
   end
 
 end

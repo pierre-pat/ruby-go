@@ -95,20 +95,24 @@ class MainServer
       return "Invalid request before starting a game: #{url}"
     end
     reply = ""
+    question = nil
     case url
       when "/newGame" then new_game(args)
       when "/move" then new_move(args)
       when "/undo" then command("undo")
       when "/pass" then command("pass")
       when "/resign" then command("resign")
+      when "/accept_score" then @controller.accept_score(get_arg(args,"value"))
+      when "/load" then question = { action:"play_moves", label:"Load moves" }
       when "/continue" then nil
       when "/history" then @controller.show_history
+      when "/play_moves" then play_moves(args)
       when "/dbg" then @controller.show_debug_info
       when "/index" then return File.read(INDEX_PAGE)
       else reply << "Unknown request: #{url}"
     end
     ai_played = @controller.let_ai_play
-    reply << web_display(@controller.goban,ai_played)
+    reply << web_display(@controller.goban, ai_played, question)
     return reply
   end
   
@@ -156,14 +160,27 @@ class MainServer
       @controller.play_one_move(move)
     rescue RuntimeError => err
       raise if ! err.message.start_with?("Invalid move")
-      @controller.add_message("Ignored move #{move} because the game displayed was not the latest one.")
+      @controller.add_message("Ignored move #{move} (game displayed was maybe not in synch)")
     end
   end
   
-  def web_display(goban,ai_played)
+  def play_moves(args)
+    moves=get_arg(args,"value").gsub(/%2C/,",")
+    begin
+      @controller.play_moves(moves)
+    rescue RuntimeError => err
+      raise if ! err.message.start_with?("Invalid move")
+      @controller.add_message(err.message)
+    end
+  end
+  
+  def web_display(goban,ai_played,question)
     ended = @controller.game_ended
-    human = (!ended and @controller.next_player_is_human?)
+    ending = (!ended and @controller.game_ending)
+    human_move = (!ended and !ending and @controller.next_player_is_human?)
     size=goban.size
+    analyser = @controller.analyser
+    
     s="<html><head>"
     s << "<style>body {background-color:#f0f0f0; font-family: tahoma, sans serif; font-size:90%} "
     s << "a:link {text-decoration:none; color:#0000FF} a:visited {color:#0000FF} "
@@ -175,13 +192,13 @@ class MainServer
       1.upto(size) do |i|
         stone = goban.stone_at?(i,j)
         if stone.empty?
-          if human and Stone.valid_move?(goban,i,j,@controller.cur_color)
+          if human_move and Stone.valid_move?(goban,i,j,@controller.cur_color)
             s << "<td><a href='move?at="+goban.x_label(i)+j.to_s+"'>+</a></td>"
           else
             s << "<td>+</td>" # empty intersection we cannot play on (ko or suicide)
           end
-        else
-          s << "<td>"+goban.stone_to_text(stone.color)+"</td>" # TODO: temporary; use nicer than characters!
+        else # TODO: temporary; use nicer than characters!
+          s << "<td>"+analyser.color_to_char(stone.color)+"</td>" 
         end
       end
       s << "</tr>"
@@ -189,24 +206,36 @@ class MainServer
     s << "<tr><td></td>"
     1.upto(size) { |i| s << "<th>"+goban.x_label(i)+"</th>" }
     s << "</tr></table>"
+
     if ai_played then
       s << "AI played "+ai_played+"<br>"
     end
-    if human then
+    if ended then
+      s << "Game ended. <a href='index'>Back to index</a><br>"
+      @controller.show_score_info
+      @controller.show_history
+    elsif ending then
+      @controller.show_score_info
+      question = {action:"accept_score", label:"Do you accept this score? (y/n)"}
+    elsif human_move then
       s << " <a href='undo'>undo</a> "
       s << " <a href='pass'>pass</a> "
       s << " <a href='resign'>resign</a> "
       s << " <a href='history'>history</a> "
+      s << " <a href='load'>load</a> "
       s << " <a href='dbg'>debug</a> "
-      s << " <br>Who's turn: #{@goban.stone_to_text(@controller.cur_color)}"
-    elsif ended then
-      s << "Game ended. <a href='index'>Back to index</a>"
-      @controller.show_history
+      s << " <br>Who's turn: #{goban.color_to_char(@controller.cur_color)}<br><br>"
     else
-      s << " <a href='continue'>continue</a> "
+      s << " <a href='continue'>continue</a><br>"
     end
-    s << "<br>"
-    while txt = @controller.messages.shift do s << "<br>"+txt end
+
+    while txt = @controller.messages.shift do s << "#{txt}<br>" end
+
+    if question
+      s << "<form name='my_form' action='#{question[:action]}'><b>#{question[:label]}</b><br>"
+      s << "<input type='text' name='value' autofocus required> "
+      s << "<input type='submit' value='Submit'></form>"
+    end
     s << "</body></html>"
     return s
   end
