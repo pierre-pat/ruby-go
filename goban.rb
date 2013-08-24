@@ -37,7 +37,8 @@ class Goban
         @ban[j][i].find_neighbors
       end
     end
-    @@sentinel = Group.new(self, Stone.new(self,-1,-1,-1), -1, 0)
+    # sentinel for group list searches; NB: values like -100 helps detecting bugs when value is used by mistake
+    @@sentinel = Group.new(self, Stone.new(self,-50,-50,EMPTY), -100, 0)
     @killed_groups = [@@sentinel] # so that we can always do @killed_groups.last.color, etc.
     @merged_groups = [@@sentinel]
     @garbage_groups = []
