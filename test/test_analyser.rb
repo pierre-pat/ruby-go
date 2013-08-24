@@ -3,9 +3,9 @@ require 'test/unit'
 require_relative "../controller"
 require_relative "../human_player"
 require_relative "../logging"
-require_relative "../util"
+require_relative "../board_analyser"
 
-# NB: for debugging think of using @goban.debug_display
+# NB: for debugging think of using analyser.debug_dump
 
 
 class TestFill < Test::Unit::TestCase
@@ -111,5 +111,6 @@ class TestFill < Test::Unit::TestCase
     @boan.analyse_empty_zones
     final_zones = "FFO@@EEEE,F@OO@EE@E,OOOO@@@EE,DDOOOOO@@,OO@@O@@@@,@@@COOOO@,O@@@@@OBO,AAA@OOOBB,AAA@@OBBB"
     assert_equal(final_zones, @boan.image?);
+    @boan.debug_dump if $debug
   end
 end

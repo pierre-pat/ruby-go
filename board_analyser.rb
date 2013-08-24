@@ -140,7 +140,7 @@ class BoardAnalyser
     end
   end
   
-  def countScore
+  def count_score
     $log.debug("Counting score...") if $debug
     analyse_empty_zones
     # TODO continue this
