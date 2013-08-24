@@ -20,9 +20,6 @@ class HumanPlayer < Player
   end
   
   def propose_score()
-    # @controller.show_debug_info if $debug
-    # @goban.console_display
-    # FIXME: we crash if we want to see the goban normally until a restore is done; make it nicer
     @controller.analyser.debug_dump
     @controller.show_score_info
     puts "Do you accept this score? (y/n)"
