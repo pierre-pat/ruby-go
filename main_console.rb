@@ -12,8 +12,7 @@ opts = Trollop::options do
   opt :handicap, "Number of handicap stones", :default => 0
   opt :load, "Game to load like e4,c3,d5", :type => :string
 end
-
-puts opts
+puts "Command line options received: #{opts}"
 
 # Create controller & players
 c = Controller.new(opts[:size], opts.players, opts.handicap)
