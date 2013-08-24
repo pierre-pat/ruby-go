@@ -3,23 +3,22 @@ require_relative "stone"
 require_relative "group"
 
 # Stores what we have on the board (namely, the stones and the empty spaces).
-# Giving coordinates, a Goban can return an existing stone.
-# It also remembers the list of stones played and can share this info for undo feature.
-# This class does not care about more than that.
+# - Giving coordinates, a Goban can return an existing stone.
+# - It also remembers the list of stones played and can share this info for undo feature.
+# - For console game and debug features, a goban can also "draw" its content as text.
 # See Stone and Group classes for the layer above this.
 class Goban
-  NOTATION_A = "a".ord # notation origin; could be A or a
 
-  COLOR_CHARS = "@OX$+" # NB "+" is for empty color == -1
-  @@color_names = ["black","white","red","blue"] # not constant as this could be user choice
-  @@num_colors = 2 # default in real world; I would like to see a game with 3 or 4 one day though :)
+  NOTATION_A = "a".ord # notation origin; could be A or a
+  COLOR_CHARS = "@OXS&0*$%:xs+" # NB "+" is for empty color == -1
   
-  attr_reader :size, :merged_groups, :killed_groups, :garbage_groups
+  attr_reader :size, :num_colors, :merged_groups, :killed_groups, :garbage_groups
 
   def initialize(size=19, num_colors=2)
     @size = size
-    raise "Max player number is #{@@color_names.size}" if num_colors>@@color_names.size
-    @@num_colors = num_colors
+    @color_names = ["black","white","red","blue"] # not constant as this could be user choice
+    raise "Number of players must be <=#{@color_names.size} and >=2" if num_colors>@color_names.size or num_colors<2
+    @num_colors = num_colors
     # We had a few discussions about the added "border" below.
     # Idea is to avoid to have to check i,j against size in many places.
     # Also in case of bug, e.g. for @ban[5][-1] Ruby returns you @ban[5][@ban.size] (looping back)
@@ -59,11 +58,10 @@ class Goban
   end
 
   # Returns the "character" used to represent a stone in text style
-  def stone_to_text(color)
-    return COLOR_CHARS[color]
-  end
   def color_to_char(color)
-    return COLOR_CHARS[color]
+    char = COLOR_CHARS[color]
+    raise "color #{color} is invalid in Goban. Use BoardAnalyser method instead?" if ! char
+    return char
   end
   
   def char_to_color(char)
@@ -73,16 +71,23 @@ class Goban
 
   # Returns the name of the color/player (e.g. "black")
   def color_name(color)
-    return @@color_names[color]
+    return @color_names[color]
+  end
+  
+  def color_to_dead_color(color)
+    return color + @color_names.size
+  end
+  def color_to_territory_color(color)
+    return color + 2 * @color_names.size
   end
 
   # For debugging and text-only; receives a block of code and calls it for each non empty stone
   # The block should return a string representation of the stone (or whatever related to it)
   # This method returns the concatenated string showing a board
-  def _to_console(double_char=false)
+  def to_text(double_char=false, with_labels=true, end_of_row="\n")
     s = ""
     @size.downto(1) do |j|
-      s << "#{'%2d' % j} "
+      s << "#{'%2d' % j} " if with_labels
       1.upto(@size) { |i|
         if @ban[j][i].color == EMPTY
           s << (double_char ? "[]" : COLOR_CHARS[EMPTY])
@@ -90,22 +95,25 @@ class Goban
           s << yield(@ban[j][i])
         end
       }
+      s << end_of_row
+    end
+    if with_labels
+      s << "   "
+      if double_char then 1.upto(@size) { |i| s << " #{x_label(i)}" }
+      else 1.upto(@size) { |i| s << x_label(i) } end
       s << "\n"
     end
-    s << "   "
-    if double_char then 1.upto(@size) { |i| s << " #{x_label(i)}" }
-    else 1.upto(@size) { |i| s << x_label(i) } end
-    s << "\n"
+    return s
   end
 
   # For debugging only
   def debug_display
     puts "Board:"
-    print _to_console { |s| stone_to_text(s.color) }
+    print to_text { |s| color_to_char(s.color) }
     puts "Groups:"
     groups={}
     double_char = (@num_groups >= 10)
-    print _to_console(double_char) { |s|
+    print to_text(double_char) { |s|
       groups[s.group.ndx] = s.group
       (double_char ? "#{'%02d' % s.group.ndx}" : "#{s.group.ndx}")
     }
@@ -115,18 +123,13 @@ class Goban
 
   # This display is for debugging and text-only game
   def console_display
-    print _to_console { |s| stone_to_text(s.color) }
+    print to_text { |s| color_to_char(s.color) }
   end
 
   # Watch out our images are upside-down on purpose (to help copy paste from screen)
   # So last row (j==size) comes first in image
   def image?
-    s = ""
-    @size.downto(1) do |j|
-      1.upto(@size) { |i| s << stone_to_text(@ban[j][i].color) }
-      s << ","
-    end
-    return s.chop!
+    return to_text(false,false,","){ |s| color_to_char(s.color) }.chop
   end
   
   # Watch out our images are upside-down on purpose (to help copy paste from screen)
