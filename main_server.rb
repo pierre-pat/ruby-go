@@ -3,6 +3,7 @@
 # Or a1=0 for 2 human players
 
 require "socket"
+require "uri"
 
 require_relative "logging"
 require_relative "controller"
@@ -42,6 +43,7 @@ class MainServer
         $log.info("Got session: #{@session}")
       end
       raise "Connection dropped" if ! (req = @session.gets)
+      req = URI.decode(req.chop!)
     rescue => err
       if err.class.name == "Errno::EWOULDBLOCK" or err.class.name == "Errno::EAGAIN"
         $log.debug("Closing and reopening the session...") # see comment above about IE
@@ -59,7 +61,7 @@ class MainServer
       $log.debug("...\"#{r}\"") if $debug
       @keep_alive = true if /Connection:[ ]*Keep-Alive/ === r
     end
-    return req.chop
+    return req
   end
 
   def close_session
@@ -166,7 +168,7 @@ class MainServer
   end
   
   def play_moves(args)
-    moves=get_arg(args,"value").gsub(/%2C/,",")
+    moves=get_arg(args,"value")
     begin
       @controller.play_moves(moves)
     rescue RuntimeError => err
