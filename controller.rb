@@ -23,7 +23,8 @@ class Controller
     @game_ended = @game_ending = false
     @who_resigned = nil
     @goban = Goban.new(size,@num_colors)
-    @analyser = BoardAnalyser.new(@goban)
+    @analyser = nil
+    @komi = (handicap == 0 ? 6.5 : 0.5)
     set_handicap(handicap)
   end
   
@@ -42,7 +43,7 @@ class Controller
       add_message "Oops... Something went wrong with the loaded moves..."
       add_message "Please double check the format of your input."
       add_message "Error: #{err.message} (#{err.class.name})"
-      $log.error("Error while loading SGF content:\n#{err}\n#{err.backtrace}")
+      $log.error("Error while loading moves:\n#{err}\n#{err.backtrace}")
     end
   end
 
@@ -57,6 +58,7 @@ class Controller
     end
     reader = SgfReader.new(game)
     new_game(reader.board_size, reader.handicap)
+    @komi = reader.komi
     game.replace reader.to_move_list
   end
   
@@ -84,7 +86,9 @@ class Controller
     elsif move.start_with?("pris")
       show_prisoners
     elsif move.start_with?("hand")
-      set_handicap(move.split(":")[1].to_i)
+      set_handicap(move.split(":")[1])
+    elsif move.start_with?("load ")
+      play_moves(move[5..-1])
     else
       play_a_stone(move)
     end
@@ -169,7 +173,7 @@ class Controller
   
   def show_debug_info
     @goban.debug_display
-    @analyser.debug_dump
+    @analyser.debug_dump if @analyser
     add_message "Debug output generated on console window." if ! @console
   end
 
@@ -189,8 +193,12 @@ class Controller
       scores = @analyser.scores
       prisoners = @analyser.prisoners
       # Counts prisoners
-      scores.size.times do |c| 
-        add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): #{scores[c]-prisoners[c]} points (#{scores[c]} - #{prisoners[c]} prisoners)"
+      scores.size.times do |c|
+        komi = (c == WHITE ? @komi : 0)
+        komi_str = (komi > 0 ? " + #{komi} komi" : "")
+        add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): "+
+          "#{scores[c]-prisoners[c]+komi} points "+
+          "(#{scores[c]} - #{prisoners[c]} prisoners#{komi_str})"
       end
     end
     add_message ""
@@ -237,6 +245,7 @@ private
 
   def we_all_pass
     return if @game_ending # avoid counting score again if nothing changed
+    @analyser = BoardAnalyser.new(@goban) if ! @analyser
     @analyser.count_score
     @game_ending = true
   end
@@ -255,12 +264,45 @@ private
   end
 
   # Initializes the handicap points
-  def set_handicap(count)
-    if count < 1
+  # h can be a number or a string
+  # string examples: "3" or "3=d4-p16-p4" or "d4-p16-p4"
+  def set_handicap(h)
+    raise "Handicap cannot be changed during a game" if history.size > 0
+    if h == 0 or h == "0"
       @handicap = 0
       return
     end
+    # White first when handicap
+    @cur_color = WHITE
+
+    # Standard handicap?
+    if h.is_a? String
+      eq = h.index("=")
+      h = h.to_i if h[0].between?("0","9") and ! eq
+    end
+    if h.is_a? Fixnum # e.g. 3
+      set_standard_handicap(h)
+      return
+    end
+
+    # Could be standard or not but we are given the stones so use them   
+    h = h[eq+1..-1] if eq # "3=d4-p16-p4" would become "d4-p16-p4"
+    moves = h.split("-")
+    @handicap = moves.size
+    moves.each do |move|
+      i, j = Goban.parse_move(move)
+      Stone.play_at(@goban, i, j, BLACK)
+    end
+  end
+  
+  # Places the standard (star points) handicap
+  # TODO: check this against the rules
+  def set_standard_handicap(count)
+    # we want middle points only if the board is big enough 
+    # and has an odd number of intersections
     size = @goban.size
+    count = count.max(4) if size<9 or size.modulo(2)==0
+    @handicap = count
     # Compute the distance from the handicap points to the border:
     # on boards smaller than 13, the handicap point is 2 points away from the border
     dist_to_border=(size<13 ? 2 : 3)
@@ -268,23 +310,19 @@ private
     middle = 1 + size/2
     long = size - dist_to_border
     
-    # we want middle points only if the board is big enough 
-    # and has an odd number of intersections
-    count = count.max(4) if size<9 or size.modulo(2)==0
-    
     count.times do |ndx|
       # Compute coordinates from the index
       # indexes correspond to this map:
-      # 0 7 3
+      # 2 7 1
       # 4 8 5
-      # 2 6 1
+      # 0 6 3
       # special case: for odd numbers and more than 4 stones, the center is picked
       ndx=8 if count.modulo(2)==1 and count>4 and ndx==count-1
       case ndx
-      	when 0 then x = short; y = long
-      	when 1 then x = long; y = short
-      	when 2 then x = short; y = short
-      	when 3 then x = long; y = long
+      	when 0 then x = short; y = short
+      	when 1 then x = long; y = long
+      	when 2 then x = short; y = long
+      	when 3 then x = long; y = short
       	when 4 then x = short; y = middle
       	when 5 then x = long; y = middle
       	when 6 then x = middle; y = short
@@ -294,9 +332,6 @@ private
       end
       Stone.play_at(@goban, x, y, BLACK)
     end
-    # white first when handicap
-    @cur_color = WHITE
-    @handicap = count
   end
 
 end
