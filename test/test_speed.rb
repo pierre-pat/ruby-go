@@ -30,13 +30,13 @@ class TestSpeed < Test::Unit::TestCase
     end
   end
 
-  def test_speed
+  def test_speed1
     tolerance = 1.20
     t = TimeKeeper.new(tolerance)
     t.calibrate(3.2)
 
     # Basic test
-    t.start("Basic (no move validation) 100,000 stones and undo", 3.84, 11)
+    t.start("Basic (no move validation) 100,000 stones and undo", 3.84, 0)
     10000.times do
       play_10_stones
     end
@@ -58,7 +58,7 @@ class TestSpeed < Test::Unit::TestCase
     #   abcdefghi
     game1 = "c3,f3,d7,e5,c5,f7,e2,e8,d8,f2,f1,g1,e1,h2,e3,d4,e4,f4,d5,d3,d2,c2,c4,d6,e7,e6,c6,f8,e9,f9,d9,c7,c8,b8,b7"
     game1_moves_ij = moves_ij(game1)
-    t.start("35 move game, 2000 times and undo", 4.60, 39)
+    t.start("35 move game, 2000 times and undo", 4.60, 3)
     2000.times do
       play_game_and_clean(game1_moves_ij)
     end
@@ -67,7 +67,7 @@ class TestSpeed < Test::Unit::TestCase
 
     # The idea here is to verify that undoing things is cheaper than throwing it all to GC
     # In a tree exploration strategy the undo should be the only way (otherwise we quickly hog all memory)
-    t.start("35 move game, 2000 times new board each time", 4.87, 26)
+    t.start("35 move game, 2000 times new board each time", 4.87, 24)
     2000.times do
       play_game_and_clean(game1_moves_ij,false)
     end
@@ -97,7 +97,7 @@ class TestSpeed < Test::Unit::TestCase
     assert_equal(final_pos, @goban.image?);
     
     init_board
-    t.start("63 move game, 2000 times and undo", 1.50, 3)
+    t.start("63 move game, 2000 times and undo", 1.50, 6)
     2000.times do
       play_game_and_clean(game2_moves_ij)
     end

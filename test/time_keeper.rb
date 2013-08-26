@@ -6,6 +6,14 @@ class TimeKeeper
   def initialize(tolerance = 1.15, ratio = 1.0)
     @tolerance = tolerance
     @ratio = ratio
+    set_gc_tolerance # in number of times over the expected number or runs
+  end
+  
+  # Sets the GC runs tolerance
+  # I.e. how many times over the expected number of GC run can we tolerate.
+  # Note this number is increased using the general tolerance percentage give at init.
+  def set_gc_tolerance(num_runs = 10)
+    @gc_tolerance = num_runs * tolerance
   end
 
   # Call this before start() if you want to compute the ratio automatically
@@ -52,6 +60,6 @@ class TimeKeeper
 private
   def check_limits
     raise "Duration over limit: #{@duration}" if @duration > @expected_time * @tolerance
-    raise "GC run number over limit: #{@num_gc}" if @num_gc > @expected_gc * @tolerance
+    raise "GC run number over limit: #{@num_gc}" if @num_gc > @expected_gc + @gc_tolerance
   end
 end
