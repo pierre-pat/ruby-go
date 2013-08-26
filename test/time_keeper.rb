@@ -13,7 +13,7 @@ class TimeKeeper
   # I.e. how many times over the expected number of GC run can we tolerate.
   # Note this number is increased using the general tolerance percentage give at init.
   def set_gc_tolerance(num_runs = 10)
-    @gc_tolerance = num_runs * tolerance
+    @gc_tolerance = num_runs * @tolerance
   end
 
   # Call this before start() if you want to compute the ratio automatically
