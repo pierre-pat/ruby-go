@@ -3,19 +3,54 @@
 # SO[http://www.littlegolem.com];B[pd];W[pp];
 # B[ce];W[dc]...;B[tt];W[tt];B[tt];W[aq])
 
+require_relative "logging"
+
+
 class SgfReader
 
-  attr_reader :board_size, :handicap, :komi
+  attr_reader :board_size, :komi, :handicap, :handicap_stones
 
   def initialize(sgf)
     @text = sgf
     @nodes = []
     @board_size = 19
     @handicap = 0
+    @handicap_stones = []
     @komi = 6.5
     parse_game_tree(sgf)
     get_game_info
   end
+
+  # Raises an exception if we could not convert the format
+  def to_move_list
+    # NB: we verify the expected player since our internal move format
+    # does not mention the player each time.
+    expected_player = "B"
+    moves = ""
+    if @handicap > 0
+      expected_player = "W"
+      if @handicap_stones.size != 0
+        raise "List of #{@handicap_stones.size} handicap stones given does not match the handicap number of #{@handicap}" if @handicap_stones.size != @handicap
+        moves = "hand:#{@handicap}=#{@handicap_stones.join("-")},"
+      else
+        moves = "hand:#{@handicap},"
+      end
+    end
+    1.upto(@nodes.size-1) do |i|
+      name = @nodes[i][0]
+      value = @nodes[i][1]
+      if name != "B" and name != "W"
+        $log.warn("Unknown property #{name}[#{value}] ignored") if name != "C" # comments can be ignored
+        next
+      end
+      raise "Move for #{expected_player} was expected and we got #{name} instead" if name != expected_player
+      moves << "#{convert_move(value)},"
+      expected_player = (expected_player == "B" ? "W" : "B")
+    end
+    return moves.chop!
+  end
+
+private
 
   def get_game_info
     header = @nodes[0]
@@ -27,6 +62,7 @@ class SgfReader
       when "FF" then $log.warn("SGF version FF[#{val}]. Not sure we handle it.") if val.to_i<4
       when "SZ" then @board_size = val.to_i
       when "HA" then @handicap = val.to_i
+      when "AB" then @handicap_stones.push(convert_move(val))
       when "KM" then @komi = val.to_f
       when "RU","RE","PB","PW","BR","WR","BT","WT","TM","DT","EV","RO",
         "PC","GN","ON","GC","SO","US","AN","CP" then nil
@@ -35,25 +71,8 @@ class SgfReader
     end
   end
 
-  # Raises an exception if we could not convert the format
-  def to_move_list
-    # NB: we verify the expected player since our internal move format
-    # does not mention the player each time.
-    moves = (@handicap == 0 ? "" : "hand:#{@handicap},")
-    expected_player = (@handicap == 0 ? "B" : "W")
-    1.upto(@nodes.size-1) do |i|
-      name = @nodes[i][0]
-      next if name != "B" and name != "W"
-      raise "Move for #{expected_player} was expected and we got #{name} instead" if name != expected_player
-      value = @nodes[i][1]
-      moves << "#{convert_move(value)},"
-      expected_player = (expected_player == "B" ? "W" : "B")
-    end
-    return moves.chop!
-  end
-
   def convert_move(sgf_move)
-    if sgf_move == "tt" or sgf_move == "aq"
+    if sgf_move == "tt"
       move = "pass"
     else
       move = sgf_move[0] + (@board_size - (sgf_move[1].ord - "a".ord)).to_s
