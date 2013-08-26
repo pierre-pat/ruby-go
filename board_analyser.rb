@@ -118,6 +118,10 @@ class BoardAnalyser
     @goban.load_image(@backup)
   end
   
+  def color_to_char(color)
+      return (color >= @first_void_code ? void_code_to_char(color) : @goban.color_to_char(color))
+  end
+
   def image?
     return @goban.to_text(false,false,","){ |s| color_to_char(s.color) }.chop
   end
@@ -229,9 +233,5 @@ private
   def group_liveliness?(g)
     g.eyes.size + g.voids.count {|z| z.owner == g.color}
   end
-  
-  def color_to_char(color)
-      return (color >= @first_void_code ? void_code_to_char(color) : @goban.color_to_char(color))
-  end
-  
+
 end
