@@ -1,24 +1,30 @@
 require_relative "goban"
-require_relative "board_analyser.rb"
+require_relative "board_analyser"
+require_relative "sgf_reader"
 
 # A controller initializes a game and controls the possible user (or AI) actions.
 class Controller
   attr_reader :goban, :analyser, :cur_color, :history, :messages, :game_ended, :game_ending
   
   def initialize(size, num_players=2, handicap=0)
-    @goban = Goban.new(size,num_players)
-    @analyser = BoardAnalyser.new(@goban)
     @console = false
+    @history = []
+    @messages = []
+    @players = Array.new(num_players,nil)
     @num_colors = num_players
+    new_game(size,handicap)
+  end
+
+  def new_game(size, handicap)
+    @history.clear
+    @messages.clear
     @num_pass = 0
     @cur_color = BLACK
     @game_ended = @game_ending = false
     @who_resigned = nil
-    @history = []
-    @messages = []
-    @players = Array.new(num_players,nil)
-    @handicap = 0
-    set_handicap_points(handicap) if handicap>0
+    @goban = Goban.new(size,@num_colors)
+    @analyser = BoardAnalyser.new(@goban)
+    set_handicap(handicap)
   end
   
   # Sets a player before the game starts
@@ -29,7 +35,29 @@ class Controller
   
   # game is a series of moves, e.g. "c2,b2,pass,b4,b3,undo,b4,pass,b3"
   def play_moves(game)
-    game.split(",").each { |move| play_one_move(move) }
+    begin
+      sgf_to_game!(game)
+      game.split(",").each { |move| play_one_move(move) }
+    rescue => err
+      add_message "Oops... Something went wrong with the loaded moves..."
+      add_message "Please double check the format of your input."
+      add_message "Error: #{err.message} (#{err.class.name})"
+      $log.error("Error while loading SGF content:\n#{err}\n#{err.backtrace}")
+    end
+  end
+
+  # Leaves the game unchanged if it is not an SGF one
+  # Replaces game by an empty move list if nothing should be played  
+  def sgf_to_game!(game)
+    return if ! game.start_with?("(;FF") # are they are always the 1st characters?
+    if history.size > 0
+      add_message "A game is pending. Please start a new game before loading an SGF file."
+      game.replace ""
+      return
+    end
+    reader = SgfReader.new(game)
+    new_game(reader.board_size, reader.handicap)
+    game.replace reader.to_move_list
   end
   
   def add_message(msg)
@@ -55,6 +83,8 @@ class Controller
       pass_one_move
     elsif move.start_with?("pris")
       show_prisoners
+    elsif move.start_with?("hand")
+      set_handicap(move.split(":")[1].to_i)
     else
       play_a_stone(move)
     end
@@ -73,7 +103,7 @@ class Controller
   def pass_one_move
     store_move_in_history("pass")
     @num_pass += 1
-    we_all_pass! if @num_pass >= @num_colors
+    we_all_pass if @num_pass >= @num_colors
     next_player!
   end
   
@@ -155,12 +185,13 @@ class Controller
   def show_score_info
     if @who_resigned
       add_message "#{@goban.color_name(@who_resigned)} resigned"
-    end
-    scores = @analyser.scores
-    prisoners = @analyser.prisoners
-    # Counts prisoners
-    scores.size.times do |c| 
-      add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): #{scores[c]-prisoners[c]} points (#{scores[c]} - #{prisoners[c]} prisoners)"
+    else
+      scores = @analyser.scores
+      prisoners = @analyser.prisoners
+      # Counts prisoners
+      scores.size.times do |c| 
+        add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): #{scores[c]-prisoners[c]} points (#{scores[c]} - #{prisoners[c]} prisoners)"
+      end
     end
     add_message ""
   end
@@ -204,7 +235,8 @@ private
     return true
   end
 
-  def we_all_pass!
+  def we_all_pass
+    return if @game_ending # avoid counting score again if nothing changed
     @analyser.count_score
     @game_ending = true
   end
@@ -223,7 +255,11 @@ private
   end
 
   # Initializes the handicap points
-  def set_handicap_points(count)
+  def set_handicap(count)
+    if count < 1
+      @handicap = 0
+      return
+    end
     size = @goban.size
     # Compute the distance from the handicap points to the border:
     # on boards smaller than 13, the handicap point is 2 points away from the border
@@ -239,20 +275,20 @@ private
     count.times do |ndx|
       # Compute coordinates from the index
       # indexes correspond to this map:
-      # 0 4 3
-      # 6 8 7
-      # 2 5 1
+      # 0 7 3
+      # 4 8 5
+      # 2 6 1
       # special case: for odd numbers and more than 4 stones, the center is picked
       ndx=8 if count.modulo(2)==1 and count>4 and ndx==count-1
       case ndx
-      	when 0 then x = short; y = short
-      	when 1 then x = long; y = long
-      	when 2 then x = short; y = long
-      	when 3 then x = long; y = short
-      	when 4 then x = middle; y = short
-      	when 5 then x = middle; y = long
-      	when 6 then x = short; y = middle
-      	when 7 then x = long; y = middle
+      	when 0 then x = short; y = long
+      	when 1 then x = long; y = short
+      	when 2 then x = short; y = short
+      	when 3 then x = long; y = long
+      	when 4 then x = short; y = middle
+      	when 5 then x = long; y = middle
+      	when 6 then x = middle; y = short
+      	when 7 then x = middle; y = long
       	when 8 then x = middle; y = middle
       	else break # not more than 8
       end
@@ -260,7 +296,7 @@ private
     end
     # white first when handicap
     @cur_color = WHITE
-    @handicap = count # keep for later
+    @handicap = count
   end
 
 end
