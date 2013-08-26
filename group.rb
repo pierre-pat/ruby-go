@@ -7,7 +7,7 @@ require_relative "stone_constants"
 # Note that most of the work here is to keep this status information up to date.
 class Group
   attr_reader :goban, :stones, :lives, :color
-  attr_reader :merged_with, :merged_by, :killed_by, :ndx
+  attr_reader :merged_with, :merged_by, :killed_by, :ndx, :eyes, :voids
   attr_writer :merged_with, :merged_by # only used in this file
   
   # Create a new group. Always with a single stone.
@@ -21,6 +21,8 @@ class Group
     @merged_by = nil # a stone
     @killed_by = nil # a stone
     @ndx = ndx # unique index
+    @voids = [] # empty zones next to a group (populated and used by analyser)
+    @eyes = [] # eyes (i.e. void surrounded by a group; populated and used by analyser)
     # $log.debug("New group created #{self}") if $debug
   end
 
@@ -30,6 +32,8 @@ class Group
     @lives = lives
     @color = stone.color
     @merged_with = @merged_by = @killed_by = nil
+    @voids.clear
+    @eyes.clear
     $log.debug("Use (new) recycled group #{self}") if $debug
     return self
   end
@@ -56,6 +60,17 @@ class Group
     return stones.map{|s| s.as_move}.sort.join(",")
   end
 
+  # Adds a void or an eye
+  def add_void(void, is_eye = false)
+    if is_eye then @eyes.push(void) else @voids.push(void) end
+  end
+  
+  # This also resets the eyes
+  def reset_voids
+    @voids.clear
+    @eyes.clear
+  end
+  
   # Counts the lives of a stone that are not already in the group
   # (the stone is to be added or removed)
   def lives_added_by_stone(stone)
