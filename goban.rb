@@ -24,19 +24,12 @@ class Goban
     # Idea is to avoid to have to check i,j against size in many places.
     # Also in case of bug, e.g. for @ban[5][-1] Ruby returns you @ban[5][@ban.size] (looping back)
     # so having a real item (BORDER) on the way is easier to detect as a bug.
-    @ban = Array.new(size+2)
-    @ban[0] = Array.new(size+2,BORDER)
-    @ban[size+1] = Array.new(size+2,BORDER)
+    @ban = Array.new(size+2) {Array.new(size+2,BORDER)}
     1.upto(size) do |j|
-      row = Array.new(size+2)
-      row[0] = row[size+1] = BORDER
-      1.upto(size) { |i| row[i]=Stone.new(self,i,j,EMPTY) }
-      @ban[j] = row
+      1.upto(size) { |i| @ban[j][i] = Stone.new(self,i,j,EMPTY) }
     end
     1.upto(size) do |j|
-      1.upto(size) do |i|
-        @ban[j][i].find_neighbors
-      end
+      1.upto(size) { |i| @ban[j][i].find_neighbors }
     end
     # sentinel for group list searches; NB: values like -100 helps detecting bugs when value is used by mistake
     @@sentinel = Group.new(self, Stone.new(self,-50,-50,EMPTY), -100, 0)
