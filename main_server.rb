@@ -182,7 +182,6 @@ class MainServer
     ending = (!ended and @controller.game_ending)
     human_move = (!ended and !ending and @controller.next_player_is_human?)
     size=goban.size
-    analyser = @controller.analyser
     
     s="<html><head>"
     s << "<style>body {background-color:#f0f0f0; font-family: tahoma, sans serif; font-size:90%} "
@@ -201,7 +200,7 @@ class MainServer
             s << "<td>+</td>" # empty intersection we cannot play on (ko or suicide)
           end
         else # TODO: temporary; use nicer than characters!
-          s << "<td>"+analyser.color_to_char(stone.color)+"</td>" 
+          s << "<td>"+goban.color_to_char(stone.color)+"</td>" 
         end
       end
       s << "</tr>"
