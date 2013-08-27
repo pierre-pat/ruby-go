@@ -105,11 +105,11 @@ class MainServer
       when "/pass" then command("pass")
       when "/resign" then command("resign")
       when "/accept_score" then @controller.accept_score(get_arg(args,"value"))
-      when "/load" then question = { action:"play_moves", label:"Load moves" }
+      when "/load" then question = { action:"load_moves", label:"Load moves" }
       when "/continue" then nil
       when "/prisoners" then @controller.show_prisoners
       when "/history" then @controller.show_history
-      when "/play_moves" then play_moves(args)
+      when "/load_moves" then load_moves(args)
       when "/dbg" then @controller.show_debug_info
       when "/index" then return File.read(INDEX_PAGE)
       else reply << "Unknown request: #{url}"
@@ -167,10 +167,10 @@ class MainServer
     end
   end
   
-  def play_moves(args)
+  def load_moves(args)
     moves=get_arg(args,"value")
     begin
-      @controller.play_moves(moves)
+      @controller.load_moves(moves)
     rescue RuntimeError => err
       raise if ! err.message.start_with?("Invalid move")
       @controller.add_message(err.message)

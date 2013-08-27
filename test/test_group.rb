@@ -125,7 +125,7 @@ class TestGroup < Test::Unit::TestCase
   # Note the quick way to play a few stones for a test
   # (methods writen before this one used the old, painful style)
   def test_case_1
-    @controller.play_moves("a2,a1,b2,b1,c2,d1,pass,e1,c1")
+    @controller.load_moves("a2,a1,b2,b1,c2,d1,pass,e1,c1")
     s = @goban.stone_at?(1,2)
     assert_equal(6, s.group.lives)
   end
@@ -135,7 +135,7 @@ class TestGroup < Test::Unit::TestCase
   #   O <- new stone
   # OOO
   def test_shared_lives2
-    @controller.play_moves("a1,pass,a3,pass,b3,pass,b1,pass,c1,pass,c3,pass,c2")
+    @controller.load_moves("a1,pass,a3,pass,b3,pass,b1,pass,c1,pass,c3,pass,c2")
     s = @goban.stone_at?(1,1)
     assert_equal(8, s.group.lives)
     Stone.undo(@goban)
@@ -198,7 +198,7 @@ class TestGroup < Test::Unit::TestCase
       check_stone(w2, 1,"c4","b4,c5,d4") # stone@:c4 around:  +[c5 d4 b4]
       # the one below is nasty: we connect with black, then undo and reconnect with white
       assert_equal(BLACK, @controller.cur_color) # otherwise things are reversed below
-      @controller.play_moves("c2,b2,pass,b4,b3,undo,b4,pass,b3")
+      @controller.load_moves("c2,b2,pass,b4,b3,undo,b4,pass,b3")
       # +++++ 5 +++++
       # +@@++ 4 +@@++
       # OOO++ 3 O@O++
@@ -217,7 +217,7 @@ class TestGroup < Test::Unit::TestCase
       check_group(bg2, 3,2,0,"c2,c3",3); # group #3 of 2 black stones [c3,c2], lives:3
       check_stone(b2, 0,"c3","d3") # stoneO:c3 around:  +[d3]
       check_stone(@goban.stone_at?(3,2), 0,"c2","c1,d2") # stoneO:c2 around:  +[d2 c1]
-      @controller.play_moves("undo,undo,undo,undo")
+      @controller.load_moves("undo,undo,undo,undo")
       # @goban.debug_display # if any assert shows you might need this to understand what happened...
     end
   end
@@ -226,7 +226,7 @@ class TestGroup < Test::Unit::TestCase
   # ...which attacks (wrongfully) the undone stone
   def test_ko_bug1
     init_board(9,2,5)
-    @controller.play_moves("e4,e3,f5,f4,g4,f2,f3,d1,f4,undo,d2,c2,f4,d1,f3,undo,c1,d1,f3,g1,f4,undo,undo,f6")
+    @controller.load_moves("e4,e3,f5,f4,g4,f2,f3,d1,f4,undo,d2,c2,f4,d1,f3,undo,c1,d1,f3,g1,f4,undo,undo,f6")
   end
 
   # At the same time a stone kills (with 0 lives left) and connects to existing surrounded group,
@@ -234,31 +234,31 @@ class TestGroup < Test::Unit::TestCase
   # we connect to has 0 lives. We simply made the raise test accept 0 lives as legit.
   def test_kamikaze_kill_while_connect
     init_board(5,2,0)
-    @controller.play_moves("a1,a3,b3,a4,b2,b1,b4,pass,a5,a2,a1,a2,undo,undo")
+    @controller.load_moves("a1,a3,b3,a4,b2,b1,b4,pass,a5,a2,a1,a2,undo,undo")
   end
   
   # This was not a bug actually but the test is nice to have.
   def test_ko_2
     init_board(5,2,0)
-    @controller.play_moves("a3,b3,b4,c2,b2,b1,c3,a2,pass,b3")
+    @controller.load_moves("a3,b3,b4,c2,b2,b1,c3,a2,pass,b3")
     # @controller.history.each do |move| puts(move) end
     assert_equal(false, Stone.valid_move?(@goban,2,2,BLACK)) # KO
-    @controller.play_moves("e5,d5")
+    @controller.load_moves("e5,d5")
     assert_equal(true, Stone.valid_move?(@goban,2,2,BLACK)) # KO can be taken again
-    @controller.play_moves("undo")
+    @controller.load_moves("undo")
     assert_equal(false, Stone.valid_move?(@goban,2,2,BLACK)) # since we are back to the ko time because of undo
   end
   
   # Fixed. Bug was when undo was picking last group by "merged_with" (implemented merged_by)
   def test_bug2
     init_board(9,2,5)
-    @controller.play_moves("i1,d3,i3,d4,i5,d5,i7,d6,undo")
+    @controller.load_moves("i1,d3,i3,d4,i5,d5,i7,d6,undo")
   end
 
   # At this moment this corresponds more or less to the speed test case too
   def test_various1
     init_board(9,2,0)
-    @controller.play_moves("pass,b2,a2,a3,b1,a1,d4,d5,a2,e5,e4,a1,undo,undo,undo,undo,undo,undo")
+    @controller.load_moves("pass,b2,a2,a3,b1,a1,d4,d5,a2,e5,e4,a1,undo,undo,undo,undo,undo,undo")
   end
   
   # This test for fixing bug we had if a group is merged then killed and then another stone played
@@ -266,23 +266,23 @@ class TestGroup < Test::Unit::TestCase
   # We simply added a check that the merged group is also the same.
   def test_another_undo
     init_board(5,2,0)
-    @controller.play_moves("e1,e2,c1,d1,d2,e1,e3,e1,undo,undo,undo,undo")
+    @controller.load_moves("e1,e2,c1,d1,d2,e1,e3,e1,undo,undo,undo,undo")
   end
   
   # Makes sure that die & resuscite actions behave well
   def test_and_again_undo
     init_board(5,2,0)
-    @controller.play_moves("a1,b1,c3")
+    @controller.load_moves("a1,b1,c3")
     ws = @goban.stone_at?(1,1)
     wg = ws.group
-    @controller.play_moves("a2")
+    @controller.load_moves("a2")
     assert_equal(0,wg.lives)
     assert_equal(EMPTY,ws.color)
     assert_equal(true,ws.group == nil)
-    @controller.play_moves("undo")
+    @controller.load_moves("undo")
     assert_equal(1,wg.lives)
     assert_equal(BLACK,ws.color)
-    @controller.play_moves("c3,a2") # and kill again the same
+    @controller.load_moves("c3,a2") # and kill again the same
     assert_equal(0,wg.lives)
     assert_equal(EMPTY,ws.color)
     assert_equal(true,ws.group == nil)

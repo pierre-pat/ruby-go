@@ -35,7 +35,7 @@ class Controller
   end
   
   # game is a series of moves, e.g. "c2,b2,pass,b4,b3,undo,b4,pass,b3"
-  def play_moves(game)
+  def load_moves(game)
     begin
       sgf_to_game!(game)
       game.split(",").each { |move| play_one_move(move) }
@@ -88,7 +88,7 @@ class Controller
     elsif move.start_with?("hand")
       set_handicap(move.split(":")[1])
     elsif move.start_with?("load ")
-      play_moves(move[5..-1])
+      load_moves(move[5..-1])
     else
       play_a_stone(move)
     end
@@ -296,7 +296,7 @@ private
   end
   
   # Places the standard (star points) handicap
-  # TODO: check this against the rules
+  # NB: a handicap of 1 stone does not make sense but we don't really need to care.
   def set_standard_handicap(count)
     # we want middle points only if the board is big enough 
     # and has an odd number of intersections
@@ -311,8 +311,8 @@ private
     long = size - dist_to_border
     
     count.times do |ndx|
-      # Compute coordinates from the index
-      # indexes correspond to this map:
+      # Compute coordinates from the index.
+      # Indexes correspond to this map (with Black playing on North on the board)
       # 2 7 1
       # 4 8 5
       # 0 6 3

@@ -23,7 +23,7 @@ if opts.ai
 end
 first_human.upto(opts.players-1) { |n| c.set_player(n, HumanPlayer) }
 
-c.play_moves(opts.load) if opts.load
+c.load_moves(opts.load) if opts.load
 
 # Start the game
 c.play_console_game

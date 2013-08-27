@@ -21,14 +21,14 @@ class TestController < Test::Unit::TestCase
   # 3 ways to load the same game with handicap...
   def test_handicap
     game6 = "(;FF[4]KM[0.5]SZ[19]HA[6]AB[pd]AB[dp]AB[pp]AB[dd]AB[pj]AB[dj];W[fq])"
-    @controller.play_moves(game6)
+    @controller.load_moves(game6)
     img = @controller.goban.image?
     @controller.new_game(19,6)
-    @controller.play_moves("f3")
+    @controller.load_moves("f3")
     assert_equal(img, @controller.goban.image?)
     # @controller.goban.console_display
     @controller.new_game(19,0)
-    @controller.play_moves("hand:6,f3")
+    @controller.load_moves("hand:6,f3")
     assert_equal(img, @controller.goban.image?)
   end
   
