@@ -103,14 +103,8 @@ class BoardAnalyser
     @voids.each do |v|
       @scores[v.owner] += v.size if v.owner
     end
-
-    puts "Groups with 2 eyes or more:"
-    @all_groups.each { |g| puts "#{g.ndx}" if g.eyes.size >= 2 }
-    puts "Groups with 1 eye:"
-    @all_groups.each { |g| puts "#{g.ndx}" if g.eyes.size == 1 }
-    puts "Groups with no eye:"
-    @all_groups.each { |g| puts "#{g.ndx}" if g.eyes.size == 0 }
-    @scores.size.times { |i| $log.debug("Player #{i}: #{scores[i]} points") } if $debug
+    
+    debug_dump if $debug
   end
   
   def restore
@@ -133,6 +127,15 @@ class BoardAnalyser
   def debug_dump  
     print @goban.to_text { |s| color_to_char(s.color) }
     @voids.each { |v| v.debug_dump }
+
+    print "\nGroups with 2 eyes or more: "
+    @all_groups.each { |g| print "#{g.ndx}," if g.eyes.size >= 2 }
+    print "\nGroups with 1 eye: "
+    @all_groups.each { |g| print "#{g.ndx}," if g.eyes.size == 1 }
+    print "\nGroups with no eye: "
+    @all_groups.each { |g| print "#{g.ndx}," if g.eyes.size == 0 }
+    print "\nScore:\n"
+    @scores.size.times { |i| puts "Player #{i}: #{scores[i]} points" }
   end
 
 private
