@@ -301,7 +301,7 @@ private
     # we want middle points only if the board is big enough 
     # and has an odd number of intersections
     size = @goban.size
-    count = count.max(4) if size<9 or size.modulo(2)==0
+    count = 4 if (size<9 or size.modulo(2)==0) and count > 4
     @handicap = count
     # Compute the distance from the handicap points to the border:
     # on boards smaller than 13, the handicap point is 2 points away from the border
