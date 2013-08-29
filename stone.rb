@@ -52,6 +52,13 @@ class Stone
     @neighbors.select { |s| s.color == EMPTY }
   end
 
+  # Number of empty points around this stone
+  def num_lives?
+    lives = 0
+    @neighbors.each { |s| lives += 1 if s.color == EMPTY }
+    return lives
+  end
+  
   # Returns a string with the list of lives, sorted (debug only)
   def lives_dump
     return empties.map{|s| s.as_move}.sort.join(",")
