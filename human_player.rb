@@ -4,6 +4,7 @@ class HumanPlayer < Player
 
   def initialize(controller, color)
     super(true, controller, color)
+    @debug_ai = Ai1Player.new(controller,color) if $debug
   end
   
   # For humans this is only called for console game
@@ -12,7 +13,15 @@ class HumanPlayer < Player
     puts "What is #{@goban.color_name(@color)}'s move? (#{@goban.color_to_char(@color)})"
     return get_answer
   end
-  
+
+  def get_ai_eval(i,j)
+    if @debug_ai
+      @debug_ai.prepare_eval
+      score = @debug_ai.eval_move(i,j)
+      $log.debug("==> AI would rank this move (#{i},#{j}) as #{score}")
+    end
+  end
+
   def on_undo_request(color)
     return true # TODO: until we implement how to broadcast this to web UI
     # puts "Undo requested by #{@goban.color_name(color)}, do you accept? (y/n)"

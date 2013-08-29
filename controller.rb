@@ -98,6 +98,7 @@ class Controller
   def play_a_stone(move)
     i, j = Goban.parse_move(move)
     raise "Invalid move: #{move}" if !Stone.valid_move?(@goban, i, j, @cur_color)
+    @players[@cur_color].get_ai_eval(i,j) if $debug and @players[@cur_color].is_human
     Stone.play_at(@goban, i, j, @cur_color)
     store_move_in_history(move)
     next_player!
