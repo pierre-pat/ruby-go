@@ -12,4 +12,5 @@ class Player
   def on_undo_request(color)
     true
   end
+
 end
