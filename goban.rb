@@ -39,7 +39,7 @@ class Goban
     @num_groups = 0
     @history = []
   end
-  
+
   # Allocate a new group or recycles one from garbage list.
   # For efficiency, call this one, do not call the regular Group.new method.
   def new_group(stone,lives)
@@ -146,8 +146,7 @@ class Goban
   # See Stone class for evolved version of this (calling this one)
   def valid_move?(i, j)
     return false if i < 1 or i > @size or j < 1 or j > @size
-    return false if ! @ban[j][i].empty?
-    return true
+    return @ban[j][i].empty?
   end
   
   def stone_at?(i,j)
@@ -156,10 +155,15 @@ class Goban
   
   def color?(i,j)
     stone = @ban[j][i]
-    return stone.color if stone
+    return stone.color if stone # works because BORDER == nil
     return BORDER
   end
 
+  # No validity test here
+  def empty?(i,j)
+    return @ban[j][i].empty?
+  end
+  
   # Wil be used for various evaluations (currently for filling a zone)
   # color should not be a player's color nor EMPTY unless we do not plan to 
   # continue the game on this goban (or we plan to restore everything we marked)
@@ -198,6 +202,14 @@ class Goban
   # Converts a numeric X coordinate in a letter (e.g 3->c)
   def x_label(i)
     return (i+NOTATION_A-1).chr
+  end
+
+  # Returns an array containing the enemy colors from given color.
+  # (trying to minimize the burden of multiplayer logic over 2 player logic)
+  def enemy_colors(color)
+    enemy_colors = []
+    @num_colors.times { |c| enemy_colors.push(c) if c != color }
+    return enemy_colors
   end
 
 end
