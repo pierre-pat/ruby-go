@@ -6,7 +6,6 @@ require_relative "heuristic"
 # TODO: 
 # - do not fill my own territory
 # - foresee a poursuit = on attack/defense (and/or use a reverse-killer?)
-# - a connector
 # - an eye shape constructor
 
 # Vague idea that playing where we already have influence is moot.
@@ -27,7 +26,7 @@ class Spacer < Heuristic
     end
     total_inf = enemy_inf + ally_inf
 
-    corner = (@size >= 13 ? 4 : 3)
+    corner = 3
     db_x = distance_from_border(i)
     db_y = distance_from_border(j)
     dc_x = 1 + (db_x - corner).abs
@@ -75,33 +74,8 @@ class Hunter < Heuristic
       next if g.lives != 2
       next if 1 == g.all_enemies.each { |e| break(1) if e.lives < g.lives }
       $log.debug("Hunter heuristic (level #{level}) looking at #{i},#{j} threat on #{g}") if $debug
-      Stone.play_at(@goban,i,j,@color)
-      lives = g.all_lives
-      raise "Unexpected: hunter #1" if lives.size != 1
-      last_life = lives.first
-      Stone.play_at(@goban,last_life.i,last_life.j,g.color) # enemy's escape move
-      caught = nil
-      if g.lives > 2 then caught = false
-      else
-        if g.lives == 0 then caught = true
-        else # g.lives is 1 or 2
-          last_life.neighbors.each do |ally_threatened|
-            next if ally_threatened.color != @color
-            caught = false if ally_threatened.group.lives < g.lives
-          end
-          if caught == nil
-            if g.lives == 1 then caught = true
-            else
-              e2 = last_life.empties
-              e2 = g.all_lives if e2.size != 2
-              raise "Unexpected: hunter #2" if e2.size != 2
-              #  recursive descent
-              caught = (eval_move(e2[0].i,e2[0].j,level+1) > 0 or eval_move(e2[1].i,e2[1].j,level+1) > 0)
-            end
-          end
-        end
-      end
-      Stone.undo(@goban)
+      Stone.play_at(@goban,i,j,@color) # our attack takes one of the 2 last lives (the one in i,j)
+      caught = enemy_is_caught?(g,level)
       Stone.undo(@goban)
       threat += g.stones.size if caught
     end # each g
@@ -109,23 +83,98 @@ class Hunter < Heuristic
     return 3 * threat
   end
 
+  def enemy_is_caught?(g,level=1)
+    lives = g.all_lives
+    raise "Unexpected: hunter #1" if lives.size != 1
+    last_life = lives.first
+    Stone.play_at(@goban,last_life.i,last_life.j,g.color) # enemy's escape move
+    begin
+      return false if g.lives > 2
+      return true if g.lives == 0
+      # g.lives is 1 or 2
+      last_life.neighbors.each do |ally_threatened|
+        next if ally_threatened.color != @color
+        return false if ally_threatened.group.lives < g.lives
+      end
+      return true if g.lives == 1
+      e2 = last_life.empties
+      e2 = g.all_lives if e2.size != 2
+      raise "Unexpected: hunter #2" if e2.size != 2
+      #  recursive descent
+      caught = (eval_move(e2[0].i,e2[0].j,level+1) > 0 or eval_move(e2[1].i,e2[1].j,level+1) > 0)
+    ensure
+      Stone.undo(@goban)
+    end
+  end
+
 end
 
 # Saviors rescue ally groups in atari
 class Savior < Heuristic
 
+  def initialize(player)
+    super
+    @enemy_hunter = Hunter.new(player)
+    @enemy_hunter.switch_side
+  end
+
   def eval_move(i,j)
     stone = @goban.stone_at?(i,j)
     threat = support = 0
+    group = nil
     stone.unique_allies(@color).each do |g|
-      threat += g.stones.size if g.lives == 1
-      support += g.lives - 1
+      if g.lives == 1
+        threat += g.stones.size
+        group = g # usually only 1 is found but it works for more
+      else
+        support += g.lives - 1
+      end
     end
     return 0 if threat == 0 # no threat
     support += stone.num_lives?
     $log.debug("Savior heuristic looking at #{i},#{j}: threat is #{threat}, support is #{support}") if $debug
     return 0 if support < 2  # nothing we can do here
+    if support == 2
+      # when we get 2 lives from the new stone, get our "consultant hunter" to evaluate if we can escape
+      return 0 if @enemy_hunter.enemy_is_caught?(group)
+    end
+    $log.debug("=> Savior heuristic thinks we can save a threat of #{threat} in #{i},#{j}") if $debug
     return 3*(threat + support/3.0) # if 2 same size groups, we prefer the easier rescue
+  end
+
+end
+
+# Basic: a move that connects 2 of our groups is good.
+# TODO: this could threaten our potential for keeping eyes, review this.
+class Connector < Heuristic
+
+  def eval_move(i,j)
+    # we care a lot if the enemy is able to cut us,
+    # and even more if by connecting we cut them...
+    # TODO: the opposite heuristic - a cutter; and make both more clever.
+    stone = @goban.stone_at?(i,j)
+    enemies = stone.unique_enemies(@color)
+    num_enemies = enemies.size
+    allies = stone.unique_allies(@color)
+    num_allies = allies.size
+    return 0 if num_allies < 2 # nothing to connect here
+    return 0 if num_enemies == 0 and num_allies == 3 # in this case we never want to connect unless enemy comes by
+    return 0 if num_allies == 4
+    if num_allies == 2
+      s1 = s2 = nil; non_unique_count = 0
+      stone.neighbors.each do |s|
+        s1 = s if s.group == allies[0]
+        s2 = s if s.group == allies[1]
+        non_unique_count += 1 if s.color == @color
+      end
+      # Case of diagonal (strong) stones (TODO: handle the case with a 3rd stone in same group than 1 or 2)
+      if non_unique_count == 2 and s1.i != s2.i and s1.j != s2.j
+        # No need to connect if both connection points are free
+        return 0 if @goban.empty?(s1.i,s2.j) and @goban.empty?(s2.i,s1.j)
+      end
+    end
+    $log.debug("=> Connector heuristic thinks we should connect in #{i},#{j} (allies:#{num_allies} enemies: #{num_enemies})") if $debug
+    return num_allies * (2 * num_enemies + 1)
   end
 
 end
