@@ -129,6 +129,7 @@ class Controller
   def play_console_game
     raise "Missing player" if @players.find_index(nil)
     @console = true
+    count = 0
     while ! @game_ended
       if @game_ending
         propose_console_end
@@ -138,6 +139,14 @@ class Controller
       move = player.get_move
       begin
         play_one_move(move)
+        if ! player.is_human and ! next_player_is_human?
+          @goban.console_display
+          if count <= 0
+            puts "Type ENTER to continue. You can specify a number of turns to automatically continue."
+            count = gets.strip.to_i
+          end
+          count -= 1
+        end
       rescue StandardError => err
         raise if ! err.to_s.start_with?("Invalid move")
         add_message "Invalid move: \"#{move}\""
