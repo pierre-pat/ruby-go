@@ -69,7 +69,7 @@ class Controller
   # Handles a regular move + the special commands
   def play_one_move(move)
     return if @game_ended
-    $log.debug("Controller playing move #{move}") if $debug
+    $log.debug("Controller playing #{@goban.color_name(@cur_color)}: #{move}") if $debug
     if move == "help" then
       add_message "Move (e.g. b3) or pass, undo, resign, history, dbg"
       add_message "Four letter abbreviations are accepted, e.g. \"hist\" is valid to mean \"history\""
@@ -116,7 +116,7 @@ class Controller
     if @num_colors == 2 then 
       @game_ended = true
       store_move_in_history("resign")
-      @who_resigned = @cur_color
+      @who_resigned = @cur_color # TODO: make it work for multiplayer mode too
     else
       pass_one_move # if more than 2 players one cannot simply resign (but pass infinitely)
     end
@@ -193,18 +193,39 @@ class Controller
     else
       scores = @analyser.scores
       prisoners = @analyser.prisoners
-      # Counts prisoners
-      scores.size.times do |c|
-        komi = (c == WHITE ? @komi : 0)
-        komi_str = (komi > 0 ? " + #{komi} komi" : "")
-        add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): "+
-          "#{scores[c]-prisoners[c]+komi} points "+
-          "(#{scores[c]} - #{prisoners[c]} prisoners#{komi_str})"
-      end
+      if @num_colors == 2
+      then show_two_player_score(scores,prisoners)
+      else show_multiplayer_score(scores,prisoners) end
     end
     add_message ""
   end
 
+  def show_two_player_score(scores,prisoners)
+    totals = []
+    2.times do |c|
+      komi = (c == WHITE ? @komi : 0)
+      komi_str = (komi > 0 ? " + #{komi} komi" : "")
+      totals[c] = scores[c] + prisoners[1 - c] + komi
+      add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): "+
+        "#{totals[c]} points (#{scores[c]} + #{prisoners[1 - c]} prisoners#{komi_str})"
+    end
+    diff = totals[BLACK] - totals[WHITE]
+    win = if diff > 0 then BLACK else WHITE end
+    if diff != 0
+      add_message "#{@goban.color_name(win)} wins by #{diff.abs} points"
+    else
+      add_message "Tie game"
+    end
+  end
+  
+  def show_multiplayer_score(scores,prisoners)
+    scores.size.times do |c|
+      add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): "+
+        "#{scores[c]-prisoners[c]} points "+
+        "(#{scores[c]} - #{prisoners[c]} prisoners)"
+    end
+  end
+  
   def accept_score(answer)
     answer.strip.downcase!
     if answer!="y" and answer!="n"
