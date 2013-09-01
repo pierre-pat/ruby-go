@@ -32,7 +32,7 @@ class Ai1Player < Player
 
     prepare_eval
 
-    best_score = 0.0
+    best_score = second_best = 0.0
     best_i = best_j = -1
     1.upto(@size) do |j|
       1.upto(@size) do |i|
@@ -40,10 +40,13 @@ class Ai1Player < Player
         # Keep the best move
         if score > best_score
           second_best = best_score
-          $log.debug("#{Goban.move_as_string(i,j)} becomes the best move with #{score} (2nd best was #{Goban.move_as_string(best_i,best_j)} with #{best_score})") if $debug
+          $log.debug("=> #{Goban.move_as_string(i,j)} becomes the best move with #{score} (2nd best was #{Goban.move_as_string(best_i,best_j)} with #{best_score})") if $debug
           best_score = score
           best_i = i
           best_j = j
+        elsif score >= second_best
+          $log.debug("=> #{Goban.move_as_string(i,j)} is second best move with #{score} (best is #{Goban.move_as_string(best_i,best_j)} with #{best_score})") if $debug
+          second_best = score
         end
       end
     end
