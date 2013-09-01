@@ -95,7 +95,7 @@ private
     node = []
     while true
       i = 0
-      while t[i].between?("A","Z") do i += 1 end
+      while t[i] and t[i].between?("A","Z") do i += 1 end
       prop_ident = t[0,i]
       error("Property name expected",t) if prop_ident == ""
       node.push(prop_ident)
@@ -110,7 +110,7 @@ private
         break if t[0] != "["
         node.push(nil) # multiple values, we use nil as name for 2nd, 3rd, etc.
       end
-      break if ! t[0].between?("A","Z")
+      break if ! t[0] or ! t[0].between?("A","Z")
     end
     @nodes.push(node)
     return true
