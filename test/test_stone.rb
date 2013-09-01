@@ -12,8 +12,8 @@ class TestStone < Test::Unit::TestCase
     @goban = Goban.new(5)
   end
 
-  def initialize(x)
-    super(x)
+  def initialize(test_name)
+    super(test_name)
     init_board()
   end
   

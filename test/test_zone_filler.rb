@@ -23,8 +23,8 @@ class TestZoneFiller < Test::Unit::TestCase
     @filler = ZoneFiller.new(@goban,100)
   end
 
-  def initialize(x)
-    super(x)
+  def initialize(test_name)
+    super(test_name)
     init_board()
   end
 

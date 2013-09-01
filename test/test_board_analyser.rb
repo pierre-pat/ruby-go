@@ -17,8 +17,8 @@ class TestBoardAnalyser < Test::Unit::TestCase
     @goban = @controller.goban
   end
 
-  def initialize(x)
-    super(x)
+  def initialize(test_name)
+    super(test_name)
   end
 
   def test_small_game

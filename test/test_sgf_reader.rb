@@ -5,8 +5,8 @@ require_relative "../sgf_reader"
 
 class TestSgfReader < Test::Unit::TestCase
 
-  def initialize(x)
-    super(x)
+  def initialize(test_name)
+    super(test_name)
   end
 
   def test_1
