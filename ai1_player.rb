@@ -13,10 +13,7 @@ class Ai1Player < Player
     super(false, controller, color)
     @inf = InfluenceMap.new(@goban)
     @size = @goban.size
-    
-    # trying to minimize the burden of multiplayer logic over 2 player logic
-    @enemy_colors = []
-    @goban.num_colors.times { |c| @enemy_colors.push(c) if c != color }
+    @enemy_colors = @goban.enemy_colors(color)
 
     @heuristics = []
     Heuristic.all_heuristics.each do |cl|
