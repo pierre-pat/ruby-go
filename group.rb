@@ -23,7 +23,9 @@ class Group
     @ndx = ndx # unique index
     @voids = [] # empty zones next to a group (populated and used by analyser)
     @eyes = [] # eyes (i.e. void surrounded by a group; populated and used by analyser)
-    # $log.debug("New group created #{self}") if $debug
+    @all_enemies = []
+    @all_lives = []
+    # $log.debug("New group created #{self}") if $debug_group
   end
 
   def recycle!(stone,lives)
@@ -34,7 +36,9 @@ class Group
     @merged_with = @merged_by = @killed_by = nil
     @voids.clear
     @eyes.clear
-    $log.debug("Use (new) recycled group #{self}") if $debug
+    @all_enemies.clear
+    @all_lives.clear
+    $log.debug("Use (new) recycled group #{self}") if $debug_group
     return self
   end
   
@@ -70,7 +74,32 @@ class Group
     @voids.clear
     @eyes.clear
   end
-  
+
+  # Builds a list of all lives of the group
+  def all_lives
+    @all_lives.clear # TODO: try if set is more efficient
+    @stones.each do |s|
+      s.neighbors.each do |life|
+        next if life.color != EMPTY
+        @all_lives.push(life) if ! @all_lives.find_index(life)
+      end
+    end
+    return @all_lives
+  end
+
+  # Builds a list of all enemies of the group
+  def all_enemies
+    @all_enemies.clear
+    @stones.each do |s|
+      s.neighbors.each do |en|
+        next if en.color == EMPTY or en.color == @color
+        @all_enemies.push(en.group) if ! @all_enemies.find_index(en.group)
+      end
+    end
+    $log.debug("#{self} has #{@all_enemies.size} enemies") if $debug_group
+    return @all_enemies    
+  end
+
   # Counts the lives of a stone that are not already in the group
   # (the stone is to be added or removed)
   def lives_added_by_stone(stone)
@@ -81,24 +110,24 @@ class Group
       # Using any? or detect makes the code clearer but slower :(
       # lives += 1 unless life.neighbors.any? { |s| s.group == self and s != stone }
     end
-    $log.debug("#{lives} lives added by #{stone} for group #{self}") if $debug
+    $log.debug("#{lives} lives added by #{stone} for group #{self}") if $debug_group
     return lives
   end
   
   # Connect a new stone or a merged stone to this group
   def connect_stone(stone, on_merge = false)
-    $log.debug("Connecting #{stone} to group #{self} (on_merge=#{on_merge})") if $debug
+    $log.debug("Connecting #{stone} to group #{self} (on_merge=#{on_merge})") if $debug_group
     @stones.push(stone)
     @lives += lives_added_by_stone(stone)
     @lives -= 1 if !on_merge # minus one since the connection itself removes 1
     raise "Unexpected error (lives<0 on connect)" if @lives<0 # can be 0 if suicide-kill
-    $log.debug("Final group: #{self}") if $debug
+    $log.debug("Final group: #{self}") if $debug_group
   end
   
   # Disconnect a stone
   # on_merge must be true for merge or unmerge-related call 
   def disconnect_stone(stone, on_merge = false)
-    $log.debug("Disconnecting #{stone} from group #{self} (on_merge=#{on_merge})") if $debug
+    $log.debug("Disconnecting #{stone} from group #{self} (on_merge=#{on_merge})") if $debug_group
     # groups of 1 stone become empty groups (->garbage)
     if @stones.size > 1
       @lives -= lives_added_by_stone(stone)
@@ -106,7 +135,7 @@ class Group
       raise "Unexpected error (lives<0 on disconnect)" if @lives<0 # can be 0 if suicide-kill
     else
       @goban.garbage_groups.push(self)
-      $log.debug("Group going to recycle bin: #{self}") if $debug
+      $log.debug("Group going to recycle bin: #{self}") if $debug_group
     end
     # we always remove them in the reverse order they came
     if @stones.pop != stone then raise "Unexpected error (disconnect order)" end
@@ -122,20 +151,20 @@ class Group
   # NB: it can never kill anything
   def attacked_by_resuscitated(stone)
     @lives -= 1
-    $log.debug("#{self} attacked by resuscitated #{stone}") if $debug
+    $log.debug("#{self} attacked by resuscitated #{stone}") if $debug_group
     raise "Unexpected error (lives<1 on attack by resucitated)" if @lives<1
   end
 
   # Stone parameter is just for debug for now
   def not_attacked_anymore(stone)
     @lives += 1
-    $log.debug("#{self} not attacked anymore by #{stone}") if $debug
+    $log.debug("#{self} not attacked anymore by #{stone}") if $debug_group
   end
   
   # Merges a subgroup with this group
   def merge(subgroup, by_stone)
     raise "Invalid merge" if subgroup.merged_with == self or subgroup == self or @color != subgroup.color
-    $log.debug("Merging subgroup:#{subgroup} to main:#{self}") if $debug
+    $log.debug("Merging subgroup:#{subgroup} to main:#{self}") if $debug_group
     subgroup.stones.each do |s| 
       s.set_group_on_merge(self)
       connect_stone(s, true)
@@ -143,18 +172,18 @@ class Group
     subgroup.merged_with = self
     subgroup.merged_by = by_stone
     @goban.merged_groups.push(subgroup)
-    $log.debug("After merge: subgroup:#{subgroup} main:#{self}") if $debug
+    $log.debug("After merge: subgroup:#{subgroup} main:#{self}") if $debug_group
   end
 
   # Reverse of merge
   def unmerge(subgroup)
-    $log.debug("Unmerging subgroup:#{subgroup} from main:#{self}") if $debug
+    $log.debug("Unmerging subgroup:#{subgroup} from main:#{self}") if $debug_group
     subgroup.stones.reverse_each do |s|
       disconnect_stone(s, true)
       s.set_group_on_merge(subgroup)
     end
     subgroup.merged_by = subgroup.merged_with = nil
-    $log.debug("After unmerge: subgroup:#{subgroup} main:#{self}") if $debug
+    $log.debug("After unmerge: subgroup:#{subgroup} main:#{self}") if $debug_group
   end
   
   # This must be called on the main group (stone.group)
@@ -166,7 +195,7 @@ class Group
   
   # Called when the group has no more life left
   def die_from(killer_stone)
-    $log.debug("Group dying: #{self}") if $debug
+    $log.debug("Group dying: #{self}") if $debug_group
     raise "Unexpected error (lives<0)" if @lives < 0
     stones.each do |stone|
       stone.unique_enemies(@color).each { |enemy| enemy.not_attacked_anymore(stone) }
@@ -174,7 +203,7 @@ class Group
     end
     @killed_by = killer_stone
     @goban.killed_groups.push(self)   
-    $log.debug("Group dead: #{self}") if $debug
+    $log.debug("Group dead: #{self}") if $debug_group
   end
   
   # Called when "undo" operation removes the killer stone of this group
@@ -190,7 +219,7 @@ class Group
   def Group.resuscitate_from(killer_stone,goban)
     while goban.killed_groups.last().killed_by == killer_stone do
       group = goban.killed_groups.pop
-      $log.debug("taking back #{killer_stone} so we resuscitate #{group.debug_dump}") if $debug
+      $log.debug("taking back #{killer_stone} so we resuscitate #{group.debug_dump}") if $debug_group
       group.resuscitate()
     end
   end
