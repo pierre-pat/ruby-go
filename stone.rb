@@ -47,7 +47,7 @@ class Stone
     to_s # we could add more info
   end
 
-  # As of now this is used for debug only  
+  # Returns the empty points around this stone
   def empties
     @neighbors.select { |s| s.color == EMPTY }
   end
@@ -190,6 +190,7 @@ class Stone
   # Called for each new stone played
   def put_down(color)
     @color = color
+    $log.debug("put_down: #{to_s}") if $debug
     allies = unique_allies(color) # note we would not need unique if group#merge ignores dupes
     if allies.size == 0
       lives = 0
