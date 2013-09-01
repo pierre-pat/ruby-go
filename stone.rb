@@ -199,10 +199,11 @@ class Stone
     else
       @group = allies.first
       @group.connect_stone(self)
-      1.upto(allies.size-1) { |a| @group.merge(allies[a],self) }
     end
-    # update_around_on_new
+    # kill before merging to get the right live-count in merged subgroups
     unique_enemies(color).each { |g| g.attacked_by(self) }
+    1.upto(allies.size-1) { |a| @group.merge(allies[a],self) }
+    # update_around_on_new
   end
 
   def take_back()

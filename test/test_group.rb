@@ -264,13 +264,13 @@ class TestGroup < Test::Unit::TestCase
   # This test for fixing bug we had if a group is merged then killed and then another stone played
   # on same spot as the merging stone, then we undo... We used to only look at merging stone to undo a merge.
   # We simply added a check that the merged group is also the same.
-  def test_another_undo
+  def test_undo_1
     init_board(5,2,0)
     @controller.load_moves("e1,e2,c1,d1,d2,e1,e3,e1,undo,undo,undo,undo")
   end
   
   # Makes sure that die & resuscite actions behave well
-  def test_and_again_undo
+  def test_undo_2
     init_board(5,2,0)
     @controller.load_moves("a1,b1,c3")
     ws = @goban.stone_at?(1,1)
@@ -286,6 +286,29 @@ class TestGroup < Test::Unit::TestCase
     assert_equal(0,wg.lives)
     assert_equal(EMPTY,ws.color)
     assert_equal(true,ws.group == nil)
+  end
+
+  # From another real life situation; kill while merging; black's turn
+  # 7 OOO
+  # 6 @@O
+  # 5 +O@
+  # 4 @+@
+  def test_undo_3
+    init_board(5,2,0)
+    @controller.load_moves("a2,a5,c2,b3,c3,c4,b4,b5,a4,c5")
+    assert_equal("OOO++,@@O++,+O@++,@+@++,+++++", @goban.image?)
+    @controller.load_moves("b2,a3,b4,a4")
+    assert_equal("OOO++,O+O++,OO@++,@@@++,+++++", @goban.image?)
+    Stone.undo(@goban)
+    assert_equal("OOO++,+@O++,OO@++,@@@++,+++++", @goban.image?)
+    w1 = @goban.stone_at?(1,5).group
+    w2 = @goban.stone_at?(1,3).group
+    b1 = @goban.stone_at?(2,4).group
+    b2 = @goban.stone_at?(1,2).group
+    assert_equal(3, w1.lives)
+    assert_equal(1, w2.lives)
+    assert_equal(1, b1.lives)
+    assert_equal(5, b2.lives)
   end
 
 end
