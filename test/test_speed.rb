@@ -1,7 +1,7 @@
 require 'test/unit'
 
 require_relative "../goban"
-require_relative "time_keeper"
+require_relative "../time_keeper"
 
 require_relative "../logging"
 $debug = false # if true it takes forever...

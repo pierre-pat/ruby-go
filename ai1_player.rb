@@ -2,7 +2,7 @@ require_relative "player"
 require_relative "goban"
 require_relative "influence_map"
 require_relative "ai/all_heuristics"
-require_relative "test/time_keeper"
+require_relative "time_keeper"
 
 
 class Ai1Player < Player
@@ -28,7 +28,7 @@ class Ai1Player < Player
   end
 
   def get_move
-    @timer.start("AI move",0.05,3)
+    @timer.start("AI move",0.5,3)
 
     prepare_eval
 
@@ -48,7 +48,7 @@ class Ai1Player < Player
       end
     end
 
-    @timer.stop
+    @timer.stop(false) # no exception if it takes longer but an error in the log
     
     return "pass" if best_score == 0.0
     return Goban.move_as_string(best_i, best_j)
