@@ -4,7 +4,7 @@ class HumanPlayer < Player
 
   def initialize(controller, color)
     super(true, controller, color)
-    @debug_ai = Ai1Player.new(controller,color) if $debug
+    @debug_ai = nil
   end
   
   # For humans this is only called for console game
@@ -12,6 +12,10 @@ class HumanPlayer < Player
     @goban.console_display
     puts "What is #{@goban.color_name(@color)}'s move? (#{@goban.color_to_char(@color)})"
     return get_answer
+  end
+
+  def attach_debug_ai(ai)
+    @debug_ai = ai
   end
 
   def get_ai_eval(i,j)
