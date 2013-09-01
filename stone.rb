@@ -207,18 +207,18 @@ class Stone
   end
 
   def take_back()
-    $log.debug("take_back: #{to_s} from group #{@group}") if $debug
+    $log.debug("take_back: #{to_s} from group #{@group}") if $debug_group
     @group.unmerge_from(self)
     @group.disconnect_stone(self)
     unique_enemies(@color).each { |g| g.not_attacked_anymore(self) }
 
     # update_around_before_die
-    log_group = @group if $debug
+    log_group = @group if $debug_group
     @group = nil
     @color = EMPTY
 
     Group.resuscitate_from(self,@goban)
-    $log.debug("take_back: end; main group: #{log_group.debug_dump}") if $debug
+    $log.debug("take_back: end; main group: #{log_group.debug_dump}") if $debug_group
   end
   
   def set_group_on_merge(new_group)
