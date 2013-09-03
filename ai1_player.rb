@@ -50,7 +50,7 @@ class Ai1Player < Player
 
     @timer.stop(false) # no exception if it takes longer but an error in the log
     
-    return "pass" if best_score == 0.0
+    return "pass" if best_score < 0.10
     return Goban.move_as_string(best_i, best_j)
   end
 
