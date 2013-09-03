@@ -3,17 +3,21 @@ require_relative "goban"
 require_relative "influence_map"
 require_relative "ai/all_heuristics"
 require_relative "time_keeper"
+require_relative "genes"
 
 
 class Ai1Player < Player
   
-  attr_reader :goban, :inf, :enemy_colors
+  attr_reader :goban, :inf, :enemy_colors, :genes
   
-  def initialize(controller, color)
+  def initialize(controller, color, genes=nil)
     super(false, controller, color)
     @inf = InfluenceMap.new(@goban)
     @size = @goban.size
     @enemy_colors = @goban.enemy_colors(color)
+
+    @genes = (genes ? genes : Genes.new)
+    @minimum_score = get_gene("minimum_score",0.10)
 
     @heuristics = []
     @negative_heuristics = []
@@ -23,18 +27,20 @@ class Ai1Player < Player
       else @negative_heuristics.push(h) end
     end
     
-    @minimum_move_score = 0.10
+    # @timer = TimeKeeper.new
+    # @timer.calibrate(0.7)
+  end
 
-    @timer = TimeKeeper.new
-    @timer.calibrate(0.7)
+  def get_gene(name,def_val)
+    @genes.get("#{self.class.name}-#{name}",def_val)
   end
 
   def get_move
-    @timer.start("AI move",0.5,3)
+    # @timer.start("AI move",0.5,3)
 
     prepare_eval
 
-    best_score = second_best = @minimum_move_score
+    best_score = second_best = @minimum_score
     best_i = best_j = -1
     1.upto(@size) do |j|
       1.upto(@size) do |i|
@@ -53,9 +59,8 @@ class Ai1Player < Player
       end
     end
 
-    @timer.stop(false) # no exception if it takes longer but an error in the log
-
-    return "pass" if best_score < @minimum_move_score
+    # @timer.stop(false) # no exception if it takes longer but an error in the log
+    return "pass" if best_score <= @minimum_score
     return Goban.move_as_string(best_i, best_j)
   end
 

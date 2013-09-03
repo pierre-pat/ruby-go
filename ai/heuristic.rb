@@ -23,6 +23,10 @@ class Heuristic
   def set_as_negative
     @negative = true
   end
+  
+  def get_gene(name,def_val)
+    @player.genes.get("#{self.class.name}-#{name}",def_val)
+  end
 
 end
 

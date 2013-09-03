@@ -11,6 +11,13 @@ require_relative "heuristic"
 # Vague idea that playing where we already have influence is moot.
 class Spacer < Heuristic
 
+  def initialize(player)
+    super
+    @main_coeff = get_gene("main_coeff",4.0)
+    @infl_coeff = get_gene("infl_coeff",2.0)
+    @corner_coeff = get_gene("corner_coeff",2.0)
+  end
+
   def eval_move(i,j)
     enemy_inf = ally_inf = 0
     stone = @goban.stone_at?(i,j)
@@ -37,7 +44,7 @@ class Spacer < Heuristic
     total_inf += (20*(2 - db_x))/(total_inf+1) if db_x<2
     total_inf += (20*(2 - db_y))/(total_inf+1) if db_y<2
 
-    return 4.0 / (total_inf*2 + dc*2 +1)
+    return @main_coeff / (total_inf * @infl_coeff + dc * @corner_coeff +1)
   end    
   
   def distance_from_border(n)
@@ -48,6 +55,12 @@ end
 
 class Pusher < Heuristic
 
+  def initialize(player)
+    super
+    @ally_coeff = get_gene("ally_coeff",-0.1)
+    @enemy_coeff = get_gene("enemy_coeff",0.4)
+  end
+
   def eval_move(i,j)
     stone = @goban.stone_at?(i,j)
     inf = @inf.map[j][i]
@@ -57,13 +70,18 @@ class Pusher < Heuristic
     
     return 0 if enemy_inf == 0 or ally_inf == 0
     $log.debug("Pusher heuristic sees influences #{ally_inf} - #{enemy_inf} at #{i},#{j}") if $debug
-    return 0.4 * enemy_inf - 0.1 * ally_inf
+    return @ally_coeff * ally_inf + @enemy_coeff * enemy_inf
   end
 
 end
 
 # Executioner only pray on enemy groups in atari
 class Executioner < Heuristic
+
+  def initialize(player)
+    super
+    @main_coeff = get_gene("main_coeff",3.0)
+  end
 
   def eval_move(i,j)
     stone = @goban.stone_at?(i,j)
@@ -72,7 +90,7 @@ class Executioner < Heuristic
       threat += g.stones.size if g.lives == 1
     end
     $log.debug("Executioner heuristic found a threat of #{threat} at #{i},#{j}") if $debug and threat>0
-    return 3 * threat
+    return @main_coeff * threat
   end
 
 end
@@ -81,8 +99,11 @@ end
 # Ladder attack fits in here.
 class Hunter < Heuristic
 
-  # TODO: we can make simpler and cleaner.
-  # The way it is now, expect a couple bugs... We will build more test cases then refactor.
+  def initialize(player,consultant=false)
+    super
+    @main_coeff = get_gene("main_coeff",3.0)
+  end
+
   def eval_move(i,j,level=1)
     stone = @goban.stone_at?(i,j)
     threat = support = 0
@@ -96,7 +117,7 @@ class Hunter < Heuristic
       threat += g.stones.size if caught
     end # each g
     $log.debug("Hunter heuristic found a threat of #{threat} at #{i},#{j}") if $debug and threat>0
-    return 3 * threat
+    return @main_coeff * threat
   end
 
   def atari_is_caught?(g,level=1)
@@ -139,6 +160,8 @@ class Savior < Heuristic
   def initialize(player)
     super
     @enemy_hunter = Hunter.new(player,true)
+    @main_coeff = get_gene("main_coeff",3.0)
+    @support_coeff = get_gene("support_coeff",1.0)
   end
 
   def eval_move(i,j)
@@ -162,7 +185,7 @@ class Savior < Heuristic
       return 0 if @enemy_hunter.atari_is_caught?(group)
     end
     $log.debug("=> Savior heuristic thinks we can save a threat of #{threat} in #{i},#{j}") if $debug
-    return 3*(threat + support/3.0) # if 2 same size groups, we prefer the easier rescue
+    return @main_coeff * threat + @support_coeff * support # if 2 same size groups, we prefer the easier rescue
   end
 
 end
@@ -170,6 +193,13 @@ end
 # Basic: a move that connects 2 of our groups is good.
 # TODO: this could threaten our potential for keeping eyes, review this.
 class Connector < Heuristic
+
+  def initialize(player)
+    super
+    @infl_coeff = get_gene("infl_coeff",1.0)
+    @ally_coeff1 = get_gene("ally_coeff1",3.0)
+    @ally_coeff2 = get_gene("ally_coeff2",5.0)
+  end
 
   def eval_move(i,j)
     # we care a lot if the enemy is able to cut us,
@@ -198,8 +228,9 @@ class Connector < Heuristic
       end
     end
     $log.debug("=> Connector heuristic thinks we should connect in #{i},#{j} (allies:#{num_allies} enemies: #{num_enemies})") if $debug
-    return 1.0 / @inf.map[j][i][@color] if num_enemies == 0
-    return num_allies * (2 * num_enemies + 1) # TODO: quite random, review it
+    return @infl_coeff / @inf.map[j][i][@color] if num_enemies == 0
+    return @ally_coeff1 * num_allies if num_enemies == 1
+    return @ally_coeff2 * num_allies
   end
 
 end
@@ -209,6 +240,7 @@ class NoEasyPrisoner < Heuristic
   def initialize(player)
     super
     set_as_negative
+    @main_coeff = get_gene("main_coeff", -50.0)
     @enemy_hunter = Hunter.new(player,true)
   end
 
@@ -219,12 +251,12 @@ class NoEasyPrisoner < Heuristic
       g = stone.group
       if g.lives == 1
         $log.debug("NoEasyPrisoner heuristic says #{i},#{j} is foolish") if $debug
-        return -50 * g.stones.size
+        return @main_coeff * g.stones.size
       end
       if g.lives == 2
         if @enemy_hunter.escaping_atari_is_caught?(stone)
           $log.debug("NoEasyPrisoner heuristic (backed by Hunter) says #{i},#{j} is foolish") if $debug
-          return -50 * g.stones.size
+          return @main_coeff * g.stones.size
         end
       end
       return 0 # "all seems fine with this move"
