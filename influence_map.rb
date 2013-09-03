@@ -47,7 +47,7 @@ class InfluenceMap
         end
       end
     end
-    debug_dump
+    debug_dump if $debug
   end
   
   def debug_dump
