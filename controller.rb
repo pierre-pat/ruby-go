@@ -16,6 +16,8 @@ class Controller
   end
 
   def new_game(size, handicap)
+    @with_human = false
+    @num_autoplay = 0
     @history.clear
     @messages.clear
     @num_pass = 0
@@ -32,6 +34,7 @@ class Controller
   def set_player(color, player_class)
     @players[color] = player_class.new(self,color)
     $log.info("Attached new player to game: #{color}, #{@players[color]}")
+    @with_human = true if @players[color].is_human
   end
   
   # game is a series of moves, e.g. "c2,b2,pass,b4,b3,undo,b4,pass,b3"
@@ -69,9 +72,11 @@ class Controller
   # Handles a regular move + the special commands
   def play_one_move(move)
     return if @game_ended
-    $log.debug("Controller playing #{@goban.color_name(@cur_color)}: #{move}") if $debug
-    if move == "help" then
-      add_message "Move (e.g. b3) or pass, undo, resign, history, dbg"
+    # $log.debug("Controller playing #{@goban.color_name(@cur_color)}: #{move}") if $debug
+    if /^[a-z][1-2]?[0-9]$/ === move
+      play_a_stone(move)
+    elsif move == "help" then # this help is for console only
+      add_message "Move (e.g. b3) or pass, undo, resign, history, dbg, log:(level)=(1/0), load:(moves), continue:(times)"
       add_message "Four letter abbreviations are accepted, e.g. \"hist\" is valid to mean \"history\""
     elsif move == "undo"
       @num_pass = 0 if request_undo()
@@ -87,10 +92,15 @@ class Controller
       show_prisoners
     elsif move.start_with?("hand")
       set_handicap(move.split(":")[1])
-    elsif move.start_with?("load ")
+    elsif move.start_with?("load:")
       load_moves(move[5..-1])
+    elsif move.start_with?("cont")
+      @num_autoplay = move.split(":")[1].to_i
+      @num_autoplay = 1 if @num_autoplay == 0 # no arg is equivalent to continue:1
+    elsif move.start_with?("log")
+      set_log_level(move.split(":")[1])
     else
-      play_a_stone(move)
+      add_message "Invalid command: #{move}"
     end
   end
 
@@ -128,25 +138,23 @@ class Controller
   
   def play_console_game
     raise "Missing player" if @players.find_index(nil)
+    @human = HumanPlayer.new(self,-1) if ! @with_human
+    @num_autoplay = 0
     @console = true
-    count = 0
     while ! @game_ended
       if @game_ending
         propose_console_end
         next
       end
       player = @players[@cur_color]
-      move = player.get_move
+      if @with_human or @num_autoplay > 0
+        move = player.get_move
+        @num_autoplay -= 1
+      else
+        move = @human.get_move
+      end
       begin
         play_one_move(move)
-        if ! player.is_human and ! next_player_is_human?
-          @goban.console_display
-          if count <= 0
-            puts "Type ENTER to continue. You can specify a number of turns to automatically continue."
-            count = gets.strip.to_i
-          end
-          count -= 1
-        end
       rescue StandardError => err
         raise if ! err.to_s.start_with?("Invalid move")
         add_message "Invalid move: \"#{move}\""
@@ -249,6 +257,22 @@ class Controller
     @game_ended = true
   end
 
+  def set_log_level(cmd)
+    begin
+      a = cmd.split("=")
+      flag = a[1].to_i != 0
+      raise 0 if ! flag and a[1]!="0"
+      case a[0]
+      when "group" then $debug_group = flag
+      when "ai" then $debug_ai = flag
+      when "all" then $debug = $debug_group = $debug_ai = flag
+      else raise 1
+      end
+    rescue
+      add_message "Invalid log command: #{cmd}"
+    end
+  end
+
 private
 
   def store_move_in_history(move)
@@ -285,6 +309,7 @@ private
     player = @players[@cur_color]
     # We ask human players; AI always accepts (since it passed)
     if ! player.is_human or player.propose_score
+      if ! player.is_human then @goban.console_display; show_score_info end
       @game_ended = true
       return true
     end

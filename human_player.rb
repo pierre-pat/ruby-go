@@ -10,7 +10,8 @@ class HumanPlayer < Player
   # For humans this is only called for console game
   def get_move
     @goban.console_display
-    puts "What is #{@goban.color_name(@color)}'s move? (#{@goban.color_to_char(@color)})"
+    color = @controller.cur_color if @color == EMPTY
+    puts "What is #{@goban.color_name(color)}/#{@goban.color_to_char(color)} move? (or 'help')"
     return get_answer
   end
 
