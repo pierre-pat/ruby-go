@@ -208,6 +208,7 @@ class NoEasyPrisoner < Heuristic
 
   def initialize(player)
     super
+    set_as_negative
     @enemy_hunter = Hunter.new(player,true)
   end
 
@@ -217,7 +218,7 @@ class NoEasyPrisoner < Heuristic
       stone = Stone.play_at(@goban,i,j,@color)
       g = stone.group
       if g.lives == 1
-        $log.debug("NoEasyPrisoner heuristic (backed by Hunter) says #{i},#{j} is foolish") if $debug
+        $log.debug("NoEasyPrisoner heuristic says #{i},#{j} is foolish") if $debug
         return -50 * g.stones.size
       end
       if g.lives == 2
