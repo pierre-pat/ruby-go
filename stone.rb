@@ -91,7 +91,7 @@ class Stone
         return false if s.group.lives > 1
       end
     end
-    $log.debug("move #{@i}, #{@j}, color:#{color} would be a suicide") if $debug
+    # $log.debug("move #{@i}, #{@j}, color:#{color} would be a suicide") if $debug
     return true
   end
   
@@ -117,7 +117,7 @@ class Stone
     stone_b = group_b.stones.first
     return false if stone_b.i != @i or stone_b.j != @j
 
-    $log.debug("ko in #{@i}, #{@j}, color:#{color} cannot be played now") if $debug
+    # $log.debug("ko in #{@i}, #{@j}, color:#{color} cannot be played now") if $debug
     return true
   end
 
