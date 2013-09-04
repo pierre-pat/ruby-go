@@ -16,9 +16,10 @@ end
 puts "Command line options received: #{opts}"
 
 # Create controller & players
-c = Controller.new(opts[:size], opts.players, opts.handicap)
+c = Controller.new
+c.new_game(opts[:size], opts.players, opts.handicap)
 opts.players.times do |n|
-  c.set_player(n, opts.ai>n ? Ai1Player : HumanPlayer)
+  c.set_player(opts.ai>n ? Ai1Player.new(c,n) : HumanPlayer.new(c,n))
 end
 
 c.load_moves(opts.load) if opts.load
