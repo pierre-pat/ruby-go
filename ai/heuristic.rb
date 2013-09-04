@@ -24,8 +24,8 @@ class Heuristic
     @negative = true
   end
   
-  def get_gene(name,def_val)
-    @player.genes.get("#{self.class.name}-#{name}",def_val)
+  def get_gene(name, def_val, low_limit=nil, high_limit=nil)
+    @player.genes.get("#{self.class.name}-#{name}",def_val,low_limit,high_limit)
   end
 
 end

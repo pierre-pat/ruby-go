@@ -17,7 +17,7 @@ class Ai1Player < Player
     @enemy_colors = @goban.enemy_colors(color)
 
     @genes = (genes ? genes : Genes.new)
-    @minimum_score = get_gene("minimum_score",0.10)
+    @minimum_score = get_gene("minimum_score", 0.10, 0.08, 0.20) #TODO weird things happen if we go off limits
 
     @heuristics = []
     @negative_heuristics = []
@@ -31,8 +31,8 @@ class Ai1Player < Player
     # @timer.calibrate(0.7)
   end
 
-  def get_gene(name,def_val)
-    @genes.get("#{self.class.name}-#{name}",def_val)
+  def get_gene(name, def_val, low_limit=nil, high_limit=nil)
+    @genes.get("#{self.class.name}-#{name}",def_val,low_limit,high_limit)
   end
 
   def get_move
