@@ -1,21 +1,22 @@
 require_relative "goban"
 require_relative "board_analyser"
 require_relative "sgf_reader"
+require_relative "human_player"
 
 # A controller initializes a game and controls the possible user (or AI) actions.
 class Controller
   attr_reader :goban, :analyser, :cur_color, :history, :messages, :game_ended, :game_ending
   
-  def initialize(size, num_players=2, handicap=0)
+  def initialize
     @console = false
     @history = []
     @messages = []
-    @players = Array.new(num_players,nil)
-    @num_colors = num_players
-    new_game(size,handicap)
+    @players = []
+    @handicap = 0
+    @num_colors = 2
   end
 
-  def new_game(size, handicap)
+  def new_game(size=nil, num_players=@num_colors, handicap=@handicap)
     @with_human = false
     @num_autoplay = 0
     @history.clear
@@ -24,17 +25,24 @@ class Controller
     @cur_color = BLACK
     @game_ended = @game_ending = false
     @who_resigned = nil
-    @goban = Goban.new(size,@num_colors)
+    if ! @goban or ( size and size != @goban.size ) or num_players != @goban.num_colors
+      @goban = Goban.new(size,@num_colors)
+    else
+      @goban.clear
+    end
     @analyser = nil
     @komi = (handicap == 0 ? 6.5 : 0.5)
     set_handicap(handicap)
+    @players.clear if num_players != @num_colors
+    @num_colors = num_players
   end
   
   # Sets a player before the game starts
-  def set_player(color, player_class)
-    @players[color] = player_class.new(self,color)
-    $log.info("Attached new player to game: #{color}, #{@players[color]}")
-    @with_human = true if @players[color].is_human
+  def set_player(player)
+    color = player.color
+    @players[color] = player
+    $log.info("Attached new player to game: #{color}, #{player}")
+    @with_human = true if player.is_human
   end
   
   # game is a series of moves, e.g. "c2,b2,pass,b4,b3,undo,b4,pass,b3"
@@ -60,7 +68,7 @@ class Controller
       return
     end
     reader = SgfReader.new(game)
-    new_game(reader.board_size, reader.handicap)
+    new_game(reader.board_size, 2, reader.handicap)
     @komi = reader.komi
     game.replace reader.to_move_list
   end
@@ -134,6 +142,23 @@ class Controller
   
   def next_player!
     @cur_color = (@cur_color+1) % @num_colors
+  end
+  
+  def play_breeding_game
+    @console = true
+    while ! @game_ending
+      move = @players[@cur_color].get_move
+      begin
+        play_one_move(move)
+      rescue StandardError => err
+        puts "Exception occurred during a breeding game.\n#{@players[@cur_color]} with genes: #{@players[@cur_color].genes}"
+        show_history
+        raise
+      end
+    end
+    score = show_two_player_score(@analyser.scores, @analyser.prisoners)
+    @analyser.restore
+    return score
   end
   
   def play_console_game
@@ -233,6 +258,7 @@ class Controller
     else
       add_message "Tie game"
     end
+    return diff
   end
   
   def show_multiplayer_score(scores,prisoners)
