@@ -14,10 +14,11 @@ class TestZoneFiller < Test::Unit::TestCase
   @@x = 0
 
   def init_board(size=5, num_players=2, handicap=0)
-    @controller = Controller.new(size, num_players, handicap)
-    @controller.set_player(0, HumanPlayer)
-    @controller.set_player(1, HumanPlayer)
-    @goban = @controller.goban
+    c = @controller = Controller.new
+    c.new_game(size, num_players, handicap)
+    c.set_player(HumanPlayer.new(c,BLACK))
+    c.set_player(HumanPlayer.new(c,WHITE))
+    @goban = c.goban
     @@x = @goban.char_to_color("X") # we use this color for replacements
     
     @filler = ZoneFiller.new(@goban,100)
