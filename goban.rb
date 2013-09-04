@@ -18,7 +18,7 @@ class Goban
   def initialize(size=19, num_colors=2)
     @size = size
     @color_names = ["black","white","red","blue"] # not constant as this could be user choice
-    raise "Number of players must be <=#{@color_names.size} and >=2" if num_colors>@color_names.size or num_colors<2
+    raise "Number of players (#{num_colors}) must be <=#{@color_names.size} and >=2" if num_colors>@color_names.size or num_colors<2
     @num_colors = num_colors
     # We had a few discussions about the added "border" below.
     # Idea is to avoid to have to check i,j against size in many places.
@@ -39,15 +39,36 @@ class Goban
     @num_groups = 0
     @history = []
   end
+  
+  # Prepares the goban for another game (same size, same number of players)
+  def clear
+    1.upto(size) do |j|
+      1.upto(size) do |i|
+        stone = @ban[j][i]
+        stone.group.clear if stone.color != EMPTY
+      end
+    end
+    # Collect all the groups and put them into @garbage_groups
+    @killed_groups.shift # removes @@sentinel
+    @merged_groups.shift # removes @@sentinel
+    @garbage_groups.concat(@killed_groups)
+    @garbage_groups.concat(@merged_groups)
+    @killed_groups.clear
+    @killed_groups.push(@@sentinel)
+    @merged_groups.clear
+    @merged_groups.push(@@sentinel)
+    @num_groups = 0
+    @history.clear
+  end
 
   # Allocate a new group or recycles one from garbage list.
   # For efficiency, call this one, do not call the regular Group.new method.
   def new_group(stone,lives)
+    @num_groups += 1
     group = garbage_groups.pop
     if group
-      return group.recycle!(stone,lives)
+      return group.recycle!(stone,lives,@num_groups)
     else
-      @num_groups += 1
       return Group.new(self,stone,lives,@num_groups)
     end
   end

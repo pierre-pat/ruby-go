@@ -23,6 +23,11 @@ class Stone
     @allies = Array.new(4)
     @enemies = Array.new(4)
   end
+  
+  def clear
+    @color = EMPTY
+    @group = nil
+  end
 
   # Computes each stone's neighbors (called for each stone after init)
   # NB: Stones next to side have only 3 neighbors, and the corner stones have 2

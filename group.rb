@@ -28,18 +28,24 @@ class Group
     # $log.debug("New group created #{self}") if $debug_group
   end
 
-  def recycle!(stone,lives)
+  def recycle!(stone,lives,ndx)
     @stones.clear
     @stones.push(stone)
     @lives = lives
     @color = stone.color
     @merged_with = @merged_by = @killed_by = nil
+    @ndx = ndx # unique index
     @voids.clear
     @eyes.clear
     @all_enemies.clear
     @all_lives.clear
-    $log.debug("Use (new) recycled group #{self}") if $debug_group
+    # $log.debug("Use (new) recycled group #{self}") if $debug_group
     return self
+  end
+  
+  def clear
+    @stones.each { |s| s.clear }
+    @goban.garbage_groups.push(self)
   end
   
   def to_s
