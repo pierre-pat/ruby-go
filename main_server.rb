@@ -18,7 +18,7 @@ class MainServer
   PORT = 8080
 
   def initialize
-    @controller = nil
+    @controller = Controller.new
     @webserver = nil
     @session = nil
   end
@@ -146,9 +146,9 @@ class MainServer
     num_players = get_arg_i(args,"players",2)
     handicap = get_arg_i(args,"handicap",0)
     num_ai = get_arg_i(args,"ai",1)
-    @controller = Controller.new(size,num_players,handicap)
-    1.upto(num_players) do |n|
-      @controller.set_player(n-1, num_ai>=n ? Ai1Player : HumanPlayer)
+    @controller.new_game(size,num_players,handicap)
+    num_players.times do |n|
+      @controller.set_player(num_ai>n ? Ai1Player.new(@controller,n) : HumanPlayer.new(@controller,n))
     end
   end
   
