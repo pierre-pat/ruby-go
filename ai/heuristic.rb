@@ -7,15 +7,19 @@ class Heuristic
 
   def initialize(player,consultant=false)
     @player = player
+    @consultant = consultant
     @negative = false
-    @color = player.color
     @goban = player.goban
     @size = player.goban.size
     @inf = player.inf
-    @enemy_colors = player.enemy_colors
+  end
+  
+  def init_color
+    @color = @player.color
+    @enemy_colors = @player.enemy_colors
     # For consultant heuristics we reverse the colors
-    if consultant
-      @color = player.enemy_colors.first
+    if @consultant
+      @color = @player.enemy_colors.first
       @enemy_colors = @goban.enemy_colors(@color)
     end
   end
