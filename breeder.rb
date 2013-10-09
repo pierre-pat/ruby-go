@@ -5,111 +5,123 @@ require_relative "time_keeper"
 require_relative "controller"
 require_relative "ai1_player"
 
-$debug_breed = true # TODO move me somewhere else?
+$debug_breed = false # true # TODO move me somewhere else?
 
 class Breeder
+
+  GENERATION_SIZE = 30
+  NUM_TOURNAMENTS = 10
+  NUM_MATCH_PER_AI_PER_TOURNAMENT = 3
+  MUTATION_RATE = 0.05 # e.g. 0.02 is 2%
+  WIDE_MUTATION_RATE = 0.20 # how often do we "widely" mutate
 
   def initialize(game_size)
     @size = game_size
     @timer = TimeKeeper.new
     @timer.calibrate(0.7)
-    c = @controller = Controller.new
+    @controller = Controller.new
     @controller.new_game(@size)
-    c.set_log_level("all=0")
-    @gen_size = 20
-    @mutation_rate = 0.02 # 0.02 is 2%
-    @keep_weakest_rate = 0.05 # how many of the weakest do we allow to reproduce anyway
+    @player1 = Ai1Player.new(@controller, BLACK)
+    @player2 = Ai1Player.new(@controller, WHITE)
+    @controller.set_player(@player1)
+    @controller.set_player(@player2)
+    @controller.set_log_level("all=0")
+    @gen_size = GENERATION_SIZE
     first_generation
   end
 
   def first_generation
     @generation = []
+    @new_generation = []
     @gen_size.times do |i|
-      @generation.push(Ai1Player.new(@controller, i % 2))
+      @generation.push(@player1.genes.clone.mutate_all!)
+      @new_generation.push(Genes.new)
     end
+    @score_diff = []
   end
   
+  # Plays a game and returns the score difference in points
   def play_game(p1,p2)
-    @timer.start("AI VS AI game",0.5,3)
+    # @timer.start("AI VS AI game",0.5,3)
     @controller.new_game(@size)
-    @controller.set_player(@generation[p1])
-    @controller.set_player(@generation[p2])
-    score = @controller.play_breeding_game
-    puts "Score: #{score}"
-    @timer.stop(false) # no exception if it takes longer but an error in the log
-    return score
+    @player1.prepare_game(@generation[p1])
+    @player2.prepare_game(@generation[p2])
+    score_diff = @controller.play_breeding_game
+    # @timer.stop(false) # no exception if it takes longer but an error in the log
+    $log.debug("\n##{p1}:#{@generation[p1]}\nagainst\n##{p2}:#{@generation[p2]}") if $debug_breed
+    $log.debug("Distance: #{'%.02f' % @generation[p1].distance(@generation[p2])}") if $debug_breed
+    $log.debug("Score: #{score_diff}") if $debug_breed
+    $log.debug("Moves: #{@controller.history_str}") if $debug_breed
+    @controller.goban.console_display if $debug_breed
+    return score_diff
   end
 
   def run
-    200.times do #TODO: Find a way to appreciate the progress
+    NUM_TOURNAMENTS.times do # TODO: Find a way to appreciate the progress
+      @timer.start("Breeding tournament #{NUM_MATCH_PER_AI_PER_TOURNAMENT} games for #{@gen_size} AIs",5.5,36)
       one_tournament
+      @timer.stop(false)
       reproduction
     end
     show_winners
   end
   
   def show_winners
-    puts "Winner:\n#{@generation[1].genes}\n against\n#{@generation[0].genes}"
-    puts "Winner:\n#{@generation[3].genes}\n against\n#{@generation[2].genes}"
-    @controller.show_history
+    # TODO ?
+    # puts "Winner:\n#{@generation[1]}\n against\n#{@generation[0]}"
   end
   
   def one_tournament
-    $log.debug("One tournament starts for #{@gen_size/2} pairs of AI") if $debug_breed
-    0.step(@gen_size-1,2) do |p|
-      if play_game(p,p+1) >= 0
-        # if the winner is black, swap them (so winners have odd numbers)
-        swap = @generation[p+1]
-        @generation[p+1] = @generation[p]
-        @generation[p] = swap
+    $log.debug("One tournament starts for #{@generation.size} AIs") if $debug_breed
+    @gen_size.times { |p1| @score_diff[p1] = 0 }
+    @total_diff = 0
+    NUM_MATCH_PER_AI_PER_TOURNAMENT.times do
+      @gen_size.times do |p1|
+        p2 = rand(@gen_size - 1)
+        p2 = @gen_size - 1 if p2 == p1
+        diff = play_game(p1,p2) * 2
+        if diff > 0
+          @score_diff[p1] += diff
+          @total_diff += diff
+        else
+          @score_diff[p2] -= diff
+          @total_diff -= diff
+        end
+        $log.debug("Match ##{p1} against ##{p2}; final scores ##{p1}:#{@score_diff[p1]}, ##{p2}:#{@score_diff[p2]}") if $debug_breed
       end
     end
+    
+    @rank
   end
   
   def reproduction
-    new_generation = []
-    i = 0
-    kid1 = Genes.new
-    kid2 = Genes.new
-    $log.debug("Reproduction time for #{@generation.size} AI") if $debug_breed
-    while @generation.size > 0 do
-      num_pairs = @generation.size / 2
-      pair1 = rand(num_pairs)
-      pair2 = rand(num_pairs)
-      pair2 = (pair2 + 1) % num_pairs if pair2 == pair1
-      weak1 = @generation[pair1*2]
-      strong1 = @generation[pair1*2+1]
-      weak2 = @generation[pair2*2]
-      strong2 = @generation[pair2*2+1]
-      parent1 = (rand < @keep_weakest_rate ? weak1.genes : strong1.genes)
-      parent2 = (rand < @keep_weakest_rate ? weak2.genes : strong2.genes)
-      # remove parents' pair from current generation so we do not select them again
-      @generation.delete(weak1)
-      @generation.delete(strong1)
-      @generation.delete(weak2)
-      @generation.delete(strong2)
-      
-      parent1.mate(parent2, kid1, kid2, @mutation_rate)
-      
-      # new generation will have 2 parents and 2 kids
-      new_generation.push(Ai1Player.new(@controller, i % 2, parent1))
-      i += 1
-      new_generation.push(Ai1Player.new(@controller, i % 2, parent2))
-      i += 1
-      new_generation.push(Ai1Player.new(@controller, i % 2, kid1))
-      i += 1
-      new_generation.push(Ai1Player.new(@controller, i % 2, kid2))
-      i += 1
+    $log.debug("=== Reproduction time for #{@generation.size} AI") if $debug_breed
+    @picked = Array.new(@gen_size,0)
+    @max_score = @score_diff.max
+    @winner = @score_diff.find_index(@max_score)
+    @pick_index = 0
+    0.step(@gen_size-1,2) do |i|
+      parent1 = pick_parent
+      parent2 = pick_parent
+      parent1.mate(parent2, @new_generation[i], @new_generation[i+1], MUTATION_RATE, WIDE_MUTATION_RATE)
     end
-    # now shuffle a bit the new generation so that families mix
-    @gen_size.times do
-      ndx1 = rand(@gen_size/2)*2 # we shuffle only the black players, it should be enough
-      ndx2 = rand(@gen_size/2)*2
-      swap = new_generation[ndx1]
-      new_generation[ndx1] = new_generation[ndx2]
-      new_generation[ndx2] = swap
+    @gen_size.times { |i| $log.debug("##{i}, score #{@score_diff[i]}, picked #{@picked[i]} times") } if $debug_breed
+    # swap new generation to replace old one
+    swap = @generation
+    @generation = @new_generation
+    @new_generation = swap
+  end
+
+  def pick_parent
+    while true
+      i = @pick_index
+      @pick_index = ( @pick_index + 1 ) % @gen_size
+      if rand < @score_diff[i] / @max_score
+        @picked[i] += 1
+        # $log.debug("Picked parent #{i} (score #{@score_diff[i]} / total #{@total_diff})") if $debug_breed
+        return @generation[i]
+      end
     end
-    @generation = new_generation
   end
 
 end
