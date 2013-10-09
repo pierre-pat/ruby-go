@@ -17,6 +17,8 @@ class Controller
   end
 
   def new_game(size=nil, num_players=@num_colors, handicap=@handicap)
+    @analyser.restore if @analyser
+    @analyser = nil
     @with_human = false
     @num_autoplay = 0
     @history.clear
@@ -30,7 +32,6 @@ class Controller
     else
       @goban.clear
     end
-    @analyser = nil
     @komi = (handicap == 0 ? 6.5 : 0.5)
     set_handicap(handicap)
     @players.clear if num_players != @num_colors
@@ -41,7 +42,7 @@ class Controller
   def set_player(player)
     color = player.color
     @players[color] = player
-    $log.info("Attached new player to game: #{color}, #{player}")
+    # $log.info("Attached new player to game: #{color}, #{player}")
     @with_human = true if player.is_human
   end
   
@@ -144,6 +145,7 @@ class Controller
     @cur_color = (@cur_color+1) % @num_colors
   end
   
+  # Returns the score difference in points
   def play_breeding_game
     @console = true
     while ! @game_ending
@@ -156,9 +158,9 @@ class Controller
         raise
       end
     end
-    score = show_two_player_score(@analyser.scores, @analyser.prisoners)
+    score_diff = compute_two_player_score(@analyser.scores, @analyser.prisoners)
     @analyser.restore
-    return score
+    return score_diff
   end
   
   def play_console_game
@@ -214,6 +216,10 @@ class Controller
     add_message ""
   end
   
+  def history_str
+    return @history.join(",")
+  end
+  
   def show_debug_info
     @goban.debug_display
     @analyser.debug_dump if @analyser
@@ -242,21 +248,31 @@ class Controller
     add_message ""
   end
 
+  # Returns the score difference in points
   def show_two_player_score(scores,prisoners)
+    return compute_two_player_score(scores,prisoners,true)
+  end
+  
+  # Returns the score difference in points
+  def compute_two_player_score(scores,prisoners,output=false)
     totals = []
     2.times do |c|
       komi = (c == WHITE ? @komi : 0)
-      komi_str = (komi > 0 ? " + #{komi} komi" : "")
       totals[c] = scores[c] + prisoners[1 - c] + komi
-      add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): "+
-        "#{totals[c]} points (#{scores[c]} + #{prisoners[1 - c]} prisoners#{komi_str})"
+      if output
+        komi_str = (komi > 0 ? " + #{komi} komi" : "")
+        add_message "#{@goban.color_name(c)} (#{@goban.color_to_char(c)}): "+
+          "#{totals[c]} points (#{scores[c]} + #{prisoners[1 - c]} prisoners#{komi_str})"
+      end
     end
     diff = totals[BLACK] - totals[WHITE]
-    win = if diff > 0 then BLACK else WHITE end
-    if diff != 0
-      add_message "#{@goban.color_name(win)} wins by #{diff.abs} points"
-    else
-      add_message "Tie game"
+    if output
+      win = if diff > 0 then BLACK else WHITE end
+      if diff != 0
+        add_message "#{@goban.color_name(win)} wins by #{diff.abs} points"
+      else
+        add_message "Tie game"
+      end
     end
     return diff
   end
