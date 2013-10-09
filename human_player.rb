@@ -3,7 +3,8 @@ require_relative "player"
 class HumanPlayer < Player
 
   def initialize(controller, color)
-    super(true, controller, color)
+    super(true, controller)
+    set_color(color)
     @debug_ai = nil
   end
   
