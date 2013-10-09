@@ -191,15 +191,23 @@ private
   # Reviews the groups and declare "dead" the ones who do not own any void
   def find_dying_groups
     @all_groups.each do |g|
-      if g.eyes.size == 0 and ! g.voids.any? {|z| z.owner == g.color}
-        # if anyway no one knows who owns the voids around g, leave it
-        next if ! g.voids.any? {|z| z.owner and z.owner != g.color }
-        stone = g.stones.first
-        taken = @filler.fill_with_color(stone.i,stone.j,g.color,@goban.color_to_dead_color(g.color))
-        @prisoners[g.color] += taken
-        @scores[g.voids[0].owner] += taken
-        $log.debug("Hence #{g} is considered dead (#{taken} prisoners; 1st stone #{stone})") if $debug
+      next if g.eyes.size != 0
+      next if g.voids.any? {|v| v.owner == g.color}
+      # find the owner of one void around (simplistic...)
+      owner = nil
+      g.voids.each do |v|
+        if v.owner
+          owner = v.owner
+          break
+        end
       end
+      # if anyway no one knows who owns the voids around g, leave it
+      next if ! owner
+      stone = g.stones.first
+      taken = @filler.fill_with_color(stone.i,stone.j,g.color,@goban.color_to_dead_color(g.color))
+      @prisoners[g.color] += taken
+      @scores[owner] += taken
+      $log.debug("Hence #{g} is considered dead (#{taken} prisoners; 1st stone #{stone})") if $debug
     end
   end
 
