@@ -13,9 +13,9 @@ class Spacer < Heuristic
 
   def initialize(player)
     super
-    @main_coeff = get_gene("main_coeff",4.0)
-    @infl_coeff = get_gene("infl_coeff",2.0)
-    @corner_coeff = get_gene("corner_coeff",2.0)
+    @main_coeff = get_gene("main_coeff", 4.0, 0.0, 8.0)
+    @infl_coeff = get_gene("infl_coeff", 2.0, 0.0, 8.0)
+    @corner_coeff = get_gene("corner_coeff", 2.0, 0.0, 8.0)
   end
 
   def eval_move(i,j)
@@ -57,8 +57,8 @@ class Pusher < Heuristic
 
   def initialize(player)
     super
-    @ally_coeff = get_gene("ally_coeff",-0.1)
-    @enemy_coeff = get_gene("enemy_coeff",0.4)
+    @ally_coeff = get_gene("ally_coeff", 0.1, 0.01, 4.0)
+    @enemy_coeff = get_gene("enemy_coeff", 0.4, 0.01, 4.0)
   end
 
   def eval_move(i,j)
@@ -70,7 +70,7 @@ class Pusher < Heuristic
     
     return 0 if enemy_inf == 0 or ally_inf == 0
     $log.debug("Pusher heuristic sees influences #{ally_inf} - #{enemy_inf} at #{i},#{j}") if $debug
-    return @ally_coeff * ally_inf + @enemy_coeff * enemy_inf
+    return @enemy_coeff * enemy_inf - @ally_coeff * ally_inf
   end
 
 end
@@ -80,7 +80,7 @@ class Executioner < Heuristic
 
   def initialize(player)
     super
-    @main_coeff = get_gene("main_coeff",3.0)
+    @main_coeff = get_gene("main_coeff", 3.0, 1.0, 10.0)
   end
 
   def eval_move(i,j)
@@ -101,7 +101,7 @@ class Hunter < Heuristic
 
   def initialize(player,consultant=false)
     super
-    @main_coeff = get_gene("main_coeff",3.0)
+    @main_coeff = get_gene("main_coeff", 3.0, 1.0, 10.0)
   end
 
   def eval_move(i,j,level=1)
@@ -160,8 +160,13 @@ class Savior < Heuristic
   def initialize(player)
     super
     @enemy_hunter = Hunter.new(player,true)
-    @main_coeff = get_gene("main_coeff",3.0)
-    @support_coeff = get_gene("support_coeff",1.0)
+    @main_coeff = get_gene("main_coeff", 3.0, 1.0, 10.0)
+    @support_coeff = get_gene("support_coeff", 1.0, 0.01, 2.0)
+  end
+  
+  def init_color
+    super
+    @enemy_hunter.init_color
   end
 
   def eval_move(i,j)
@@ -196,9 +201,9 @@ class Connector < Heuristic
 
   def initialize(player)
     super
-    @infl_coeff = get_gene("infl_coeff",1.0)
-    @ally_coeff1 = get_gene("ally_coeff1",3.0)
-    @ally_coeff2 = get_gene("ally_coeff2",5.0)
+    @infl_coeff = get_gene("infl_coeff", 1.0, 0.01, 3.0)
+    @ally_coeff1 = get_gene("ally_coeff1", 3.0, 0.01, 3.0)
+    @ally_coeff2 = get_gene("ally_coeff2", 5.0, 0.01, 8.0)
   end
 
   def eval_move(i,j)
@@ -240,8 +245,13 @@ class NoEasyPrisoner < Heuristic
   def initialize(player)
     super
     set_as_negative
-    @main_coeff = get_gene("main_coeff", -50.0)
+    @main_coeff = get_gene("main_coeff", 3.0, 0.01, 10.0)
     @enemy_hunter = Hunter.new(player,true)
+  end
+
+  def init_color
+    super
+    @enemy_hunter.init_color
   end
 
   def eval_move(i,j)
@@ -251,12 +261,12 @@ class NoEasyPrisoner < Heuristic
       g = stone.group
       if g.lives == 1
         $log.debug("NoEasyPrisoner heuristic says #{i},#{j} is foolish") if $debug
-        return @main_coeff * g.stones.size
+        return - @main_coeff * g.stones.size
       end
       if g.lives == 2
         if @enemy_hunter.escaping_atari_is_caught?(stone)
           $log.debug("NoEasyPrisoner heuristic (backed by Hunter) says #{i},#{j} is foolish") if $debug
-          return @main_coeff * g.stones.size
+          return - @main_coeff * g.stones.size
         end
       end
       return 0 # "all seems fine with this move"
