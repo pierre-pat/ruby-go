@@ -16,7 +16,7 @@ class Controller
     @num_colors = 2
   end
 
-  def new_game(size=nil, num_players=@num_colors, handicap=@handicap)
+  def new_game(size=nil, num_players=@num_colors, handicap=@handicap, komi=nil)
     @analyser.restore if @analyser
     @analyser = nil
     @with_human = false
@@ -32,7 +32,7 @@ class Controller
     else
       @goban.clear
     end
-    @komi = (handicap == 0 ? 6.5 : 0.5)
+    @komi = (komi ? komi : (handicap == 0 ? 6.5 : 0.5))
     set_handicap(handicap)
     @players.clear if num_players != @num_colors
     @num_colors = num_players
