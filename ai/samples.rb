@@ -75,7 +75,7 @@ class Pusher < Heuristic
 
 end
 
-# Executioner only pray on enemy groups in atari
+# Executioner only preys on enemy groups in atari
 class Executioner < Heuristic
 
   def initialize(player)
