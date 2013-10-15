@@ -17,7 +17,7 @@ class SgfReader
     @handicap = 0
     @handicap_stones = []
     @komi = 6.5
-    parse_game_tree(sgf)
+    parse_game_tree(sgf+"")
     get_game_info
   end
 

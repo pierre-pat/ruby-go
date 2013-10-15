@@ -49,7 +49,7 @@ class Controller
   # game is a series of moves, e.g. "c2,b2,pass,b4,b3,undo,b4,pass,b3"
   def load_moves(game)
     begin
-      sgf_to_game!(game)
+      game = sgf_to_game(game)
       game.split(",").each { |move| play_one_move(move) }
     rescue => err
       add_message "Oops... Something went wrong with the loaded moves..."
@@ -59,19 +59,19 @@ class Controller
     end
   end
 
-  # Leaves the game unchanged if it is not an SGF one
-  # Replaces game by an empty move list if nothing should be played  
-  def sgf_to_game!(game)
-    return if ! game.start_with?("(;FF") # are they are always the 1st characters?
+  # Converts a game (list of moves) from SGF format to our internal format.
+  # Returns the game unchanged if it is not an SGF one.
+  # Returns an empty move list if nothing should be played (a game is pending).
+  def sgf_to_game(game)
+    return game if ! game.start_with?("(;FF") # are they are always the 1st characters?
     if history.size > 0
       add_message "A game is pending. Please start a new game before loading an SGF file."
-      game.replace ""
-      return
+      return ""
     end
     reader = SgfReader.new(game)
     new_game(reader.board_size, 2, reader.handicap)
     @komi = reader.komi
-    game.replace reader.to_move_list
+    return reader.to_move_list
   end
   
   def add_message(msg)
