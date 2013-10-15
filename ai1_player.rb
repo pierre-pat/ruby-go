@@ -100,9 +100,10 @@ class Ai1Player < Player
   def eval_move(i,j,best_score)
     return 0.0 if ! Stone.valid_move?(@goban, i, j, @color)
     score = 0.0
+    # run all positive heuristics
     @heuristics.each { |h| score += h.eval_move(i,j) }
     # we run negative heuristics only if this move was a potential candidate
-    if score > best_score
+    if score >= best_score
       @negative_heuristics.each { |h| score += h.eval_move(i,j); break if score < best_score }
     end
     return score
