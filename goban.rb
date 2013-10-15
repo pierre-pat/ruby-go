@@ -20,6 +20,7 @@ class Goban
     @color_names = ["black","white","red","blue"] # not constant as this could be user choice
     raise "Number of players (#{num_colors}) must be <=#{@color_names.size} and >=2" if num_colors>@color_names.size or num_colors<2
     @num_colors = num_colors
+    set_enemy_colors
     # We had a few discussions about the added "border" below.
     # Idea is to avoid to have to check i,j against size in many places.
     # Also in case of bug, e.g. for @ban[5][-1] Ruby returns you @ban[5][@ban.size] (looping back)
@@ -228,9 +229,19 @@ class Goban
   # Returns an array containing the enemy colors from given color.
   # (trying to minimize the burden of multiplayer logic over 2 player logic)
   def enemy_colors(color)
-    enemy_colors = []
-    @num_colors.times { |c| enemy_colors.push(c) if c != color }
-    return enemy_colors
+    return @enemy_colors[color]
+  end
+
+private
+
+  # Pre-computes the lists of enemy colors
+  def set_enemy_colors
+    @enemy_colors = []
+    @num_colors.times do |color|
+      ec = []
+      @num_colors.times { |c| ec.push(c) if c != color }
+      @enemy_colors.push(ec)
+    end
   end
 
 end
