@@ -24,6 +24,9 @@ class Heuristic
     end
   end
   
+  # A "negative" heuristic is one that can only give a negative score (or 0.0) to a move.
+  # We use this difference to spare some CPU work when a move is not good enough 
+  # (after running the "positive" heuristics) to beat the current candidate.
   def set_as_negative
     @negative = true
   end
