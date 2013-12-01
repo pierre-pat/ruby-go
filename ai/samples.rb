@@ -4,7 +4,8 @@ require_relative "heuristic"
 # We will probably split this file in several ones later.
 
 # TODO: 
-# - do not fill my own territory
+# - do not fill my own territory (potential territory recognition will use analyser.enlarge method)
+# - identify all foolish moves (like NoEasyPrisoner but once for all) in a map that all heuristics can use
 # - foresee a poursuit = on attack/defense (and/or use a reverse-killer?)
 # - an eye shape constructor
 
@@ -85,7 +86,7 @@ class Executioner < Heuristic
 
   def eval_move(i,j)
     stone = @goban.stone_at?(i,j)
-    threat = support = 0
+    threat = 0
     stone.unique_enemies(@color).each do |g|
       threat += g.stones.size if g.lives == 1
     end
@@ -106,7 +107,7 @@ class Hunter < Heuristic
 
   def eval_move(i,j,level=1)
     stone = @goban.stone_at?(i,j)
-    threat = support = 0
+    threat = 0
     stone.unique_enemies(@color).each do |g|
       next if g.lives != 2
       next if 1 == g.all_enemies.each { |e| break(1) if e.lives < g.lives }
@@ -161,7 +162,6 @@ class Savior < Heuristic
     super
     @enemy_hunter = Hunter.new(player,true)
     @main_coeff = get_gene("main_coeff", 3.0, 1.0, 10.0)
-    @support_coeff = get_gene("support_coeff", 1.0, 0.01, 2.0)
   end
   
   def init_color
@@ -190,7 +190,7 @@ class Savior < Heuristic
       return 0 if @enemy_hunter.atari_is_caught?(group)
     end
     $log.debug("=> Savior heuristic thinks we can save a threat of #{threat} in #{i},#{j}") if $debug
-    return @main_coeff * threat + @support_coeff * support # if 2 same size groups, we prefer the easier rescue
+    return @main_coeff * threat
   end
 
 end
@@ -255,18 +255,20 @@ class NoEasyPrisoner < Heuristic
   end
 
   def eval_move(i,j)
-    # TODO: add snapback exception
+    # NB: snapback is handled in hunter; here we just notice the sacrifice of a stone, which will
+    # be balanced by the profit measured by hunter (e.g. lose 1 but kill 3).
     begin
       stone = Stone.play_at(@goban,i,j,@color)
       g = stone.group
+      score = - @main_coeff * g.stones.size
       if g.lives == 1
-        $log.debug("NoEasyPrisoner heuristic says #{i},#{j} is foolish") if $debug
-        return - @main_coeff * g.stones.size
+        $log.debug("NoEasyPrisoner heuristic says #{i},#{j} is plain foolish (#{score})") if $debug
+        return score
       end
       if g.lives == 2
         if @enemy_hunter.escaping_atari_is_caught?(stone)
-          $log.debug("NoEasyPrisoner heuristic (backed by Hunter) says #{i},#{j} is foolish") if $debug
-          return - @main_coeff * g.stones.size
+          $log.debug("NoEasyPrisoner heuristic (backed by Hunter) says #{i},#{j} is foolish  (#{score})") if $debug
+          return score
         end
       end
       return 0 # "all seems fine with this move"
