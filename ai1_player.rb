@@ -55,7 +55,10 @@ class Ai1Player < Player
   def get_move
     # @timer.start("AI move",0.5,3)
     @num_moves += 1
-    return "pass" if @num_moves >= @size * @size # force pass after too many moves
+    if @num_moves >= @size * @size # force pass after too many moves
+      $log.error("Forcing AI pass since we already played #{@num_moves}")
+      return "pass"
+    end
 
     prepare_eval
 
@@ -89,8 +92,9 @@ class Ai1Player < Player
     end
 
     # @timer.stop(false) # no exception if it takes longer but an error in the log
-    return "pass" if best_score <= @minimum_score
-    return Goban.move_as_string(best_i, best_j)
+    return Goban.move_as_string(best_i, best_j) if best_score > @minimum_score
+    $log.debug("AI is passing...") if $debug
+    return "pass"
   end
 
   def prepare_eval
