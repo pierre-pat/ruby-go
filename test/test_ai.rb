@@ -32,8 +32,20 @@ class TestAi < Test::Unit::TestCase
     # 4 +++++++++
     #   abcdefghi
     @controller.load_moves("i8,i9,d7,c5")
-    @goban.debug_display
+    # @goban.debug_display
     assert_equal("h9", @controller.let_ai_play) # FIXME: h8 is better than killing in h9
+  end
+
+  def test_issue_hunter
+    # 5 +++++++++
+    # 4 +@@@@O+++
+    # 3 ++O@O@O++
+    # 2 ++O@O@+++
+    # 1 +++OO++++
+    #   abcdefghi
+    @controller.load_moves("d4,e2,d2,c3,d3,c2,b4,d1,c4,f4,f3,e3,e4,g3,f2,e1")
+    # @goban.debug_display
+    assert_equal("c1", @controller.let_ai_play) # FIXME: should NOT be c1
   end
 
   def test_hunter_1
