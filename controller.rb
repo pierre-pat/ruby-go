@@ -17,8 +17,6 @@ class Controller
   end
 
   def new_game(size=nil, num_players=@num_colors, handicap=@handicap, komi=nil)
-    @analyser.restore if @analyser
-    @analyser = nil
     @with_human = false
     @num_autoplay = 0
     @history.clear
@@ -29,7 +27,9 @@ class Controller
     @who_resigned = nil
     if ! @goban or ( size and size != @goban.size ) or num_players != @goban.num_colors
       @goban = Goban.new(size,@num_colors)
+      @analyser = BoardAnalyser.new(@goban)
     else
+      @analyser.restore
       @goban.clear
     end
     @komi = (komi ? komi : (handicap == 0 ? 6.5 : 0.5))
@@ -342,7 +342,6 @@ private
 
   def we_all_pass
     return if @game_ending # avoid counting score again if nothing changed
-    @analyser = BoardAnalyser.new(@goban) if ! @analyser
     @analyser.count_score
     @game_ending = true
   end
