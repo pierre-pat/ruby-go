@@ -36,7 +36,7 @@ class TimeKeeper
   def start(task_name, expected_in_sec, expected_gc)
     @task_name = task_name
     @expected_time = expected_in_sec * @ratio
-    @expected_gc = expected_gc
+    @expected_gc = expected_gc.round
     puts "Started \"#{task_name}\"..." # (expected time #{'%.02f' % @expected_time}s)..."
     @gc0 = GC.count
     @t0 = Time.now
