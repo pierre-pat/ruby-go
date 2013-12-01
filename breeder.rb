@@ -9,12 +9,12 @@ $debug_breed = false # TODO move me somewhere else?
 
 class Breeder
 
-  GENERATION_SIZE = 30
-  NUM_TOURNAMENTS = 1
-  NUM_MATCH_PER_AI_PER_TOURNAMENT = 3
-  MUTATION_RATE = 0.05 # e.g. 0.02 is 2%
-  WIDE_MUTATION_RATE = 0.20 # how often do we "widely" mutate
-  KOMI = 1.5
+  GENERATION_SIZE = 26 # must be even number
+  NUM_TOURNAMENTS = 0
+  NUM_MATCH_PER_AI_PER_TOURNAMENT = 4
+  MUTATION_RATE = 0.03 # e.g. 0.02 is 2%
+  WIDE_MUTATION_RATE = 0.10 # how often do we "widely" mutate
+  KOMI = 0.5
   TOO_SMALL_SCORE_DIFF = 3 # if final score is less that this, see it as a tie game
 
   def initialize(game_size)
@@ -70,6 +70,8 @@ class Breeder
     control_issue
   end
   
+  # NB: we only update score for black so komi unbalance does not matter.
+  # Sadly this costs us a lot: we need to play twice more games to get score data...
   def one_tournament
     $log.debug("One tournament starts for #{@generation.size} AIs") if $debug_breed
     @gen_size.times { |p1| @score_diff[p1] = 0 }
@@ -127,7 +129,7 @@ class Breeder
     previous = $debug_breed
     $debug_breed = false
     num_control_games = 30
-    $log.debug("Playing #{num_control_games} games to measure the current winner against our control AI...")
+    $log.debug("Playing #{num_control_games * 2} games to measure the current winner against our control AI...")
     total_score = num_wins = num_wins_w = 0
     num_control_games.times do
       score = play_game("control","winner",@control_genes,@winner)
@@ -149,7 +151,7 @@ class Breeder
     previous = $debug_breed
     $debug_breed = false
     num_control_games = 1000
-    $log.debug("Issue black/white unbalance. Playing #{num_control_games} games to measure the current winner against our control AI...")
+    $log.debug("Issue black/white unbalance. Playing #{num_control_games} games to measure B/W balance (komi=#{KOMI})...")
     total_score = num_wins = num_wins_w = 0
     num_control_games.times do
       score = play_game("control","control",@control_genes,@control_genes)
@@ -160,7 +162,7 @@ class Breeder
     @timer.stop(false)
     $debug_breed = true
     $log.debug("Average score of control against itself: #{total_score/num_control_games}") if $debug_breed
-    $log.debug("Total score: #{total_score} (out of #{num_control_games} games, control won #{num_wins} as black; should be half = #{num_control_games/2}; we usually get 4.2 instead of 5 wins)") if $debug_breed
+    $log.debug("Out of #{num_control_games} games, black won #{num_wins} times") if $debug_breed
     $debug_breed = previous
   end
 
