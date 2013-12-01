@@ -87,4 +87,40 @@ class TestBoardAnalyser < Test::Unit::TestCase
     assert_equal([44,56], @boan.scores)
   end
 
+  def test_enlarge
+    init_board(9)
+    # 9 +++++++++
+    # 8 +++O@++++
+    # 7 ++O+@+@++
+    # 6 ++O++++++
+    # 5 +O++O+@@+
+    # 4 +O@++++O+
+    # 3 +@@+@+O++
+    # 2 +++@O++++
+    # 1 +++++++++
+    #   abcdefghi
+    game = "c3,c6,e7,g3,g7,e2,d2,b4,b3,c7,g5,h4,h5,d8,e8,e5,c4,b5,e3" # ,f2,c5,f6,f7,g6,h6,d7,a4,a5,b6,a3,a6,b7,a4,a7,d9,c9,b8,e6,d5,d6,e9,g4,f5,f4,e1,f1,d1,i5,i6,e4,i4,i3,h8,c8,d3,i5,f3,g2,i4,b5,b4,a5,i5"
+    @controller.load_moves(game)
+    @boan = @controller.analyser
+    @boan._enlarge
+    # 9 :::O@----
+    # 8 ::OO@@@--
+    # 7 :OOO@@@@-
+    # 6 :OOO@?@@-
+    # 5 OOOOOO@@@
+    # 4 OO@@O?@OO
+    # 3 @@@@@@OO:
+    # 2 -@@@OOO::
+    # 1 ---@O::::
+    #   abcdefghi
+    @boan.count_score
+    # @boan.debug_dump if $debug
+    final_zones = ":::O@----,::OO@@@--,:OOO@@@@-,:OOO@?@@-,OOOOOO@@@,OO@@O?@OO,@@@@@@OO:,-@@@OOO::,---@O::::"
+    assert_equal(final_zones, @goban.image?)
+    prisoners = Group.prisoners?(@goban)
+    assert_equal([0,0], prisoners)
+    assert_equal([0,0], @boan.prisoners)
+    assert_equal([12,14], @boan.scores)
+  end
+
 end

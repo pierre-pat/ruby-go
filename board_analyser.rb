@@ -108,15 +108,14 @@ class BoardAnalyser
     debug_dump if $debug
   end
   
-  def enlarge
-    count_score
-    backup = @backup
-    restore
-    
-    debug_dump
-    stones = []
+  # Work in progress...
+  def _enlarge
+    backup = @goban.image?
+    num_stones = 0
     rows = backup.split(/\"|,/)
     size = @goban.size
+    # TODO: do the enlarging again but in reverse order (from bottom right to top left corner)
+    # then compare the two situations (live groups) to get an idea of obvious dispute areas...
     size.downto(1) do |j|
       row = rows[size-j]
       1.upto(size) do |i|
@@ -124,13 +123,17 @@ class BoardAnalyser
         if color != EMPTY
           stone = @goban.stone_at?(i,j)
           stone.neighbors.each do |n|
-            stones.push(Stone.play_at(@goban,n.i,n.j,stone.color)) if n.color == EMPTY
+            if n.color == EMPTY
+              Stone.play_at(@goban,n.i,n.j,stone.color)
+              num_stones += 1
+            end
           end
         end
       end
     end
-    count_score
-    restore
+    return num_stones 
+    # TODO instead we should undo each stone played and store a map with 
+    # the info collected about the groups.
   end
   
   def restore
@@ -210,7 +213,7 @@ private
       if lives.count { |l| l == more_lives } == 1 # make sure we have a winner, not a tie
         c = lives.find_index(more_lives)
         v.set_owner(c)
-        $log.debug("Deciding that color #{c}, with #{more_lives} lives, owns #{v}") if $debug
+        $log.debug("It looks like color #{c}, with #{more_lives} lives, owns #{v} (this might change once we identify dead groups)") if $debug
       end
     end
   end
@@ -248,7 +251,10 @@ private
           if group_liveliness?(g) >= 1 then alive_colors.push(c); break end
         end
       end
-      v.set_owner(nil) if alive_colors.size >= 2
+      if alive_colors.size >= 2
+        v.set_owner(nil)
+        $log.debug("Void #{v} is considered neutral (\"dame\")") if $debug
+      end
     end
   end
   
