@@ -92,6 +92,7 @@ class BoardAnalyser
     $log.debug("Counting score...") if $debug
     @scores = Array.new(@num_colors,0)
     @prisoners = Group.prisoners?(@goban)
+    @backup = @goban.image?
 
     find_voids
     find_eyes
@@ -107,9 +108,36 @@ class BoardAnalyser
     debug_dump if $debug
   end
   
+  def enlarge
+    count_score
+    backup = @backup
+    restore
+    
+    debug_dump
+    stones = []
+    rows = backup.split(/\"|,/)
+    size = @goban.size
+    size.downto(1) do |j|
+      row = rows[size-j]
+      1.upto(size) do |i|
+        color = @goban.char_to_color(row[i-1])
+        if color != EMPTY
+          stone = @goban.stone_at?(i,j)
+          stone.neighbors.each do |n|
+            stones.push(Stone.play_at(@goban,n.i,n.j,stone.color)) if n.color == EMPTY
+          end
+        end
+      end
+    end
+    count_score
+    restore
+  end
+  
   def restore
+    return if !@backup
     $log.debug("Analyser: restoring goban...") if $debug
     @goban.load_image(@backup)
+    @backup = nil
   end
   
   def color_to_char(color)
@@ -144,7 +172,6 @@ private
   # Call restore if the game needs to continue.
   def find_voids
     $log.debug("Find voids...") if $debug
-    @backup = @goban.image?
     void_code = @first_void_code
     @all_groups.each { |g| g.reset_voids }
     @all_groups.clear
