@@ -67,7 +67,6 @@ class Breeder
       reproduction
       control
     end
-    control_issue
   end
   
   # NB: we only update score for black so komi unbalance does not matter.
@@ -146,24 +145,21 @@ class Breeder
     $debug_breed = previous
   end
 
-  def control_issue
-    @timer.start("control issue",62,410)
-    previous = $debug_breed
-    $debug_breed = false
-    num_control_games = 1000
-    $log.debug("Issue black/white unbalance. Playing #{num_control_games} games to measure B/W balance (komi=#{KOMI})...")
+  # Play many games AI VS AI to verify black/white balance
+  def bw_balance_check(num_games,size)
+    @timer.start("bw_balance_check", num_games/1000.0*50, num_games/1000.0*512)
+    $log.debug("Checking black/white balance by playing #{num_games} games (komi=#{KOMI})...")
     total_score = num_wins = num_wins_w = 0
-    num_control_games.times do
+    num_games.times do
       score = play_game("control","control",@control_genes,@control_genes)
       num_wins += 1 if score>0
       raise "tie game?!" if score == 0
       total_score += score
     end
-    @timer.stop(false)
-    $debug_breed = true
-    $log.debug("Average score of control against itself: #{total_score/num_control_games}") if $debug_breed
-    $log.debug("Out of #{num_control_games} games, black won #{num_wins} times") if $debug_breed
-    $debug_breed = previous
+    @timer.stop(size == 9) # if size is not 9 our perf numbers are of course meaningless
+    $log.debug("Average score of control against itself: #{total_score/num_games}") if $debug_breed
+    $log.debug("Out of #{num_games} games, black won #{num_wins} times") if $debug_breed
+    return num_wins
   end
 
 end
