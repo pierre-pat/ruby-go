@@ -9,7 +9,7 @@ class InfluenceMap
     @num_colors = goban.num_colors
     @map = Array.new(@size+1) {Array.new(@size+1) {Array.new(@num_colors,0)}}
   end
-  
+
   def clear
     1.upto(@size) do |j|
       1.upto(@size) do |i|
@@ -17,7 +17,7 @@ class InfluenceMap
       end
     end
   end
-  
+
   def build_map!
     clear
     influence = [4,2,1]
@@ -47,9 +47,9 @@ class InfluenceMap
         end
       end
     end
-    debug_dump if $debug
+    debug_dump if $log.level == Logger::DEBUG
   end
-  
+
   def debug_dump
     @num_colors.times do |c|
       puts "Influence map for #{@goban.color_name(c)}:"
