@@ -21,15 +21,16 @@ class Board
   attr_reader :grid
 
   def initialize window, top_x, top_y, cell_size, stone_size, num_cell=9
-    @grid = {}
     @stone_size = stone_size
     @white = Gosu::Image.new(window, "img/white_circle.png", true)
     @black = Gosu::Image.new(window, "img/black_circle.png", true)
+    @grid = []
     (0..num_cell).each do |x|
+      @grid[x] = []
       (0..num_cell).each do |y|
         coord_x = top_x + x * cell_size
         coord_y = top_y + y * cell_size
-        @grid[[x, y]] = UIStone.new(window, coord_x, coord_y, x, y, stone_size)
+        @grid[x] << UIStone.new(window, coord_x, coord_y, x, y, stone_size)
       end
     end
   end
@@ -39,7 +40,7 @@ class Board
       (0..goban.size).each do |j|
         stone = goban.stone_at?(i+1, j+1)
         if stone and stone.color != -1
-            cell = @grid[[i, j]]
+            cell = @grid[i][j]
           if goban.color_name(stone.color) == "black"
             @white.draw(cell.coord_x - @stone_size / 2, cell.coord_y - @stone_size / 2, 0)
           else
@@ -88,8 +89,8 @@ class GoWindow < Gosu::Window
   def button_down(id)
     case id
     when Gosu::MsLeft
-      cells = @board.grid.select{ |k, v| (v.coord_x - mouse_x).abs < 5 && (v.coord_y - mouse_y).abs < 5}
-      move = parse_index(cells.values[0]) if cells and cells.size == 1
+      cells = @board.grid.flatten.select{ |c| (c.coord_x - mouse_x).abs < 5 && (c.coord_y - mouse_y).abs < 5}
+      move = parse_index(cells[0]) if cells and cells.size == 1
       begin
         @controller.play_one_move(move) if move
       rescue Exception => e
