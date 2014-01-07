@@ -55,8 +55,8 @@ end
 class GoWindow < Gosu::Window
 
   BACKGROUND_COLOR = Gosu::Color.new(0xFFD3D3D3)
-  WIDTH = 800
-  HEIGHT = 800
+  WIDTH = 450
+  HEIGHT = 500
   CELL_SIZE = 40
   STONE_SIZE = 25
   GOBAN_SIZE = 9
@@ -64,8 +64,10 @@ class GoWindow < Gosu::Window
   OFFSET = 70
 
   def initialize
-    super 600, 600, false
+    super WIDTH, HEIGHT, false
     self.caption = "Rubigolo"
+    @font = Gosu::Font.new(self, "Arial", 20)
+    @error_message = nil
     @board = Board.new(self, OFFSET, OFFSET, CELL_SIZE, STONE_SIZE)
 
     @controller = Controller.new
@@ -84,20 +86,24 @@ class GoWindow < Gosu::Window
     draw_background
     draw_grid
     @board.draw(@controller.goban)
+    draw_error_message
   end
 
   def button_down(id)
     case id
     when Gosu::MsLeft
-      cells = @board.grid.flatten.select{ |c| (c.coord_x - mouse_x).abs < 5 && (c.coord_y - mouse_y).abs < 5}
-      move = parse_index(cells[0]) if cells and cells.size == 1
+      cell = @board.grid.flatten.find{ |c| (c.coord_x - mouse_x).abs < 5 && (c.coord_y - mouse_y).abs < 5}
+      move = parse_index(cell) if cell
       begin
         @controller.play_one_move(move) if move
+        @error_message = nil
       rescue Exception => e
         $log.error(e.message)
+        @error_message = e.message
       end
     when Gosu::KbP
       @controller.play_one_move("pass")
+      @error_message = nil
     end
   end
 
@@ -119,6 +125,10 @@ class GoWindow < Gosu::Window
       draw_line(OFFSET, i * CELL_SIZE + OFFSET, Gosu::Color::BLACK,
                         GRID_SIZE + OFFSET, i * CELL_SIZE + OFFSET, Gosu::Color::BLACK)
     end
+  end
+
+  def draw_error_message
+    @font.draw(@error_message, 65, 450, 0.99, 1, 1, Gosu::Color::BLACK) if @error_message
   end
 
   def parse_index(c)
